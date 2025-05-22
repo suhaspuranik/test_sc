@@ -20,6 +20,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -114,6 +115,8 @@ public class DashboardActivity extends BaseActivity {
                                         obj.optString("attended_user", "N/A")
                                 ));
                             }
+                            Collections.sort(fullAlertList, (a1, a2) -> a2.getTime().compareTo(a1.getTime()));
+
                             filterAlerts();
                         } catch (Exception e) {
                             Log.e("API_FETCH_ALERTS", "Parsing error: " + e.getMessage());

@@ -45,6 +45,8 @@
                 android:id="@+id/alertStatus"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:minWidth="80dp"
+                android:gravity="center"
                 android:background="@drawable/status_pending_background"
                 android:text="Pending"
                 android:paddingLeft="12dp"
@@ -54,6 +56,7 @@
                 android:textColor="@color/brown"
                 android:textStyle="bold"
                 android:textSize="12sp" />
+
         </LinearLayout>
 
         <TextView

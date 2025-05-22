@@ -3,6 +3,8 @@ package com.example.smart_cam;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -227,6 +229,7 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
         TextView longitudeText = popupView.findViewById(R.id.tv_longitude);
         TextView locationText = popupView.findViewById(R.id.tv_location);
         Button okButton = popupView.findViewById(R.id.btn_ok);
+        Button viewInMapsButton = popupView.findViewById(R.id.btn_view_in_maps); // Make sure this button exists in your XML
 
         latitudeText.setText("Latitude: " + latitude);
         longitudeText.setText("Longitude: " + longitude);
@@ -237,8 +240,21 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
                 .create();
 
         okButton.setOnClickListener(v -> dialog.dismiss());
+
+        viewInMapsButton.setOnClickListener(v -> {
+            try {
+                String uri = "geo:" + latitude + "," + longitude + "?q=" + latitude + "," + longitude + "(" + location + ")";
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(uri));
+                intent.setPackage("com.google.android.apps.maps");
+                context.startActivity(intent);
+            } catch (Exception e) {
+                Toast.makeText(context, "Google Maps not found", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         dialog.show();
     }
+
 
     private void showErrorPopup(Context context, String message) {
         if (!(context instanceof Activity) || ((Activity) context).isFinishing()) {

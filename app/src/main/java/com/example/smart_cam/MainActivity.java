@@ -116,11 +116,20 @@ public class MainActivity extends BaseActivity {
                     AppConfig.LOGIN_URL,
                     jsonBody,
                     response -> {
-                        Log.d("API_LOGIN", "Login successful: " + response.toString());
-                        Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
+                        Log.d("API_LOGIN", "Login response: " + response.toString());
 
                         try {
-                            int userId = response.getJSONObject("RESULT").getInt("user_id");
+                            JSONObject result = response.getJSONObject("RESULT");
+
+                            // Check for expected fields
+                            if (!result.has("user_id")) {
+                                throw new Exception("Missing user_id in response");
+                            }
+
+                            int userId = result.getInt("user_id");
+
+                            // ✅ Now show login success toast
+                            Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
 
                             SharedPreferences.Editor editor = getSharedPreferences("user_session", MODE_PRIVATE).edit();
                             editor.putBoolean("is_logged_in", true);
@@ -134,18 +143,21 @@ public class MainActivity extends BaseActivity {
                             startActivity(intent);
                             finish();
                         } catch (Exception e) {
-                            e.printStackTrace();
-                            Toast.makeText(this, "Login response error", Toast.LENGTH_SHORT).show();
+                            Log.e("API_LOGIN", "Parsing error: " + e.getMessage());
+                            Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show();
                             btnLogin.setEnabled(true);
                         }
                     },
                     error -> {
                         btnLogin.setEnabled(true);
-                        String errorMsg = "Login Failed, Check your internet connection!";
+                        String errorMsg = "Login failed. Please try again.";
                         if (error.networkResponse != null && error.networkResponse.data != null) {
                             errorMsg = new String(error.networkResponse.data);
+                            if (errorMsg.toLowerCase().contains("invalid")) {
+                                errorMsg = "Invalid username or password";
+                            }
                         }
-                        Log.e("API_LOGIN", errorMsg);
+                        Log.e("API_LOGIN", "Error: " + errorMsg);
                         Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
                     }
             ) {
@@ -166,4 +178,5 @@ public class MainActivity extends BaseActivity {
             Toast.makeText(this, "Something went wrong", Toast.LENGTH_SHORT).show();
         }
     }
+
 }
