@@ -1,0 +1,30 @@
+<resources>
+    <color name="green">#2E7D32</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+    <color name="brown">#8D6E63</color>
+    <color name="light_brown">#D7CCC8</color>
+    <color name="button_green">#4CAF50</color>
+    <color name="checkbox_checked_fill">#2E7D32</color>
+    <color name="checkbox_unchecked_fill">#FFFFFF</color>
+    <color name="gray">#808080</color>
+<!--    <color name="background">#FFFFFF</color>-->
+<!--    <color name="textColor">#000000</color>-->
+<!--    <color name="inputBorder">#CCCCCC</color>-->
+    <color name="dark_gray">#BDBDBD</color>
+    <color name="blue">#2196F3</color>
+    <color name="default_color">#D3D3D3</color>
+    <color name="selected_color">#2196F3</color>
+    <color name="yellow">#FFF176</color>
+    <color name="popupbg">#ADD8E6</color>
+    <color name="background">#000000</color>
+        <color name="textColor">#FFFFFF</color>
+        <color name="inputBorder">#444444</color>
+    <color name="card_background">#BDBDBD</color>
+    <color name="checkbox_tint">#4CAF50</color>
+        <color name="light_status_bar_bg">#333333</color>
+        <color name="dark_status_bar_bg">#000000</color>
+
+
+</resources>
+

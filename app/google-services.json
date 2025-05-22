@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "10447084440",
+    "project_id": "smart-cam-firebase",
+    "storage_bucket": "smart-cam-firebase.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10447084440:android:68cb504f6be4a5adc5a9ed",
+        "android_client_info": {
+          "package_name": "com.example.smart_cam"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwDMahT59eJeVKXQnPDlVHCB4bYqeG45I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10447084440:android:f7ddc70a5a34f297c5a9ed",
+        "android_client_info": {
+          "package_name": "com.example.smart_cam_login"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwDMahT59eJeVKXQnPDlVHCB4bYqeG45I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

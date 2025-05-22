@@ -1,0 +1,16 @@
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">  <!-- Change from state_selected to state_pressed -->
+        <shape android:shape="rectangle">
+            <solid android:color="@color/selected_color"/>
+            <corners android:radius="20dp"/>
+            <padding android:left="10dp" android:right="10dp" android:top="6dp" android:bottom="6dp"/>
+        </shape>
+    </item>
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="@color/default_color"/>
+            <corners android:radius="8dp"/>
+            <padding android:left="10dp" android:right="10dp" android:top="6dp" android:bottom="6dp"/>
+        </shape>
+    </item>
+</selector>

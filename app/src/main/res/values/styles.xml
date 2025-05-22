@@ -1,0 +1,31 @@
+<resources>
+    <style name="Theme.SmartCam" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    </style>
+
+    <style name="FilterButton" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="backgroundTint">@color/gray</item>
+        <item name="strokeColor">@color/gray</item>
+        <item name="strokeWidth">2dp</item>
+        <item name="shapeAppearanceOverlay">@style/CustomButtonShape</item>
+        <item name="android:statusBarColor">@color/white</item>
+<!--        <item name="android:windowLightStatusBar">true</item>-->
+    </style>
+
+    <style name="CustomButtonShape" parent="ShapeAppearance.MaterialComponents.SmallComponent">
+        <item name="cornerSize">16dp</item>
+    </style>
+
+    <style name="CustomButton">
+        <item name="cornerSize">16dp</item>
+    </style>
+
+<!--    <style name="CheckboxStyle" parent="Widget.AppCompat.CompoundButton.CheckBox">-->
+<!--        <item name="android:buttonTint">@color/checkbox_tint</item>-->
+<!--        <item name="android:drawableTint">@color/white</item>-->
+<!--    </style>-->
+
+</resources>
