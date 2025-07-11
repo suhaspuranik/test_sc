@@ -6,6 +6,8 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
@@ -18,26 +20,32 @@ import com.google.firebase.messaging.RemoteMessage;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
-    private static final String CHANNEL_ID = "elephant_alert_channel";
+    private static final String CHANNEL_ID = "elephant_alert_channel"; // Use new channel ID if muted earlier
 
     @Override
     public void onNewToken(String token) {
         Log.d("FCM", "New token: " + token);
+        // You may want to send this token to your backend server
     }
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
+        Log.d("FCM", "Message received");
+
         String title = "Elephant Alert";
         String body = "Check the alert now!";
 
         if (remoteMessage.getNotification() != null) {
+            // Notification payload
             title = remoteMessage.getNotification().getTitle();
             body = remoteMessage.getNotification().getBody();
         } else if (remoteMessage.getData().size() > 0) {
-            title = remoteMessage.getData().get("title");
-            body = remoteMessage.getData().get("body");
+            // Data payload
+            title = remoteMessage.getData().get("title") != null ? remoteMessage.getData().get("title") : title;
+            body = remoteMessage.getData().get("body") != null ? remoteMessage.getData().get("body") : body;
         }
 
+        Log.d("FCM_DATA", "Title: " + title + ", Body: " + body);
         sendNotification(title, body);
     }
 
@@ -56,6 +64,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                     "Elephant Alerts",
                     NotificationManager.IMPORTANCE_HIGH
             );
+            channel.setDescription("Notifications for elephant conflict alerts");
             channel.setSound(soundUri, audioAttributes);
             channel.enableLights(true);
             channel.enableVibration(true);
@@ -88,8 +97,11 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                         : PendingIntent.FLAG_ONE_SHOT
         );
 
+        Bitmap largeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.smart_cam); // Replace with your icon
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification)
+                .setSmallIcon(R.drawable.smart_cam) // White-transparent icon recommended
+                .setLargeIcon(largeIcon)
                 .setContentTitle(title != null ? title : "Elephant Alert")
                 .setContentText(body != null ? body : "Check the alert now.")
                 .setAutoCancel(true)

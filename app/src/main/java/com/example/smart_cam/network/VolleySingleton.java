@@ -1,18 +1,22 @@
 package com.example.smart_cam.network;
 
 import android.content.Context;
+
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.Volley;
-public class VolleySingleton {
-    public static VolleySingleton instance;
-    private RequestQueue requestQueue;
-    private Context ctx;
 
-    private VolleySingleton(Context context){
-        ctx = context;
+public class VolleySingleton {
+    private static VolleySingleton instance;
+    private RequestQueue requestQueue;
+    private static Context ctx;
+
+    private VolleySingleton(Context context) {
+        // Use application context to avoid leaking activities
+        ctx = context.getApplicationContext();
         requestQueue = getRequestQueue();
     }
+
     public static synchronized VolleySingleton getInstance(Context context) {
         if (instance == null) {
             instance = new VolleySingleton(context);
@@ -22,7 +26,7 @@ public class VolleySingleton {
 
     public RequestQueue getRequestQueue() {
         if (requestQueue == null) {
-            requestQueue = Volley.newRequestQueue(ctx.getApplicationContext());
+            requestQueue = Volley.newRequestQueue(ctx);
         }
         return requestQueue;
     }

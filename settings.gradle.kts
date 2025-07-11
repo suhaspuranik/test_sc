@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "smart_cam"
+rootProject.name = "Smart Cam"
 include(":app")
  

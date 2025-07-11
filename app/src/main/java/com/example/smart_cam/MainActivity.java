@@ -2,6 +2,7 @@ package com.example.smart_cam;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.InputType;
@@ -12,10 +13,11 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.example.smart_cam.network.VolleySingleton;
@@ -34,6 +36,8 @@ public class MainActivity extends BaseActivity {
     ImageView iv_toggle_password;
     boolean isPasswordVisible = false;
     String fcmToken = "";
+
+    private static final int NOTIFICATION_PERMISSION_REQUEST = 101;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,8 +59,6 @@ public class MainActivity extends BaseActivity {
             View decor = getWindow().getDecorView();
             decor.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR);
             getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.light_status_bar_bg));
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.dark_status_bar_fallback));
         }
 
         edtUsername = findViewById(R.id.et_guard_id);
@@ -78,18 +80,51 @@ public class MainActivity extends BaseActivity {
 
         btnLogin.setOnClickListener(v -> loginUser());
 
-        fetchFCMToken();
+        requestNotificationPermission();
+    }
+
+    private void requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS)
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this,
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        NOTIFICATION_PERMISSION_REQUEST);
+                return;
+            }
+        }
+        fetchFCMToken(); // Already granted
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == NOTIFICATION_PERMISSION_REQUEST) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Log.d("Permission", "Notification permission granted");
+            } else {
+                Toast.makeText(this, "Notification permission denied. Alerts may be suppressed.", Toast.LENGTH_SHORT).show();
+            }
+            fetchFCMToken(); // Try fetching either way
+        }
     }
 
     private void fetchFCMToken() {
+        btnLogin.setEnabled(false);
+
         FirebaseMessaging.getInstance().getToken()
                 .addOnCompleteListener(task -> {
                     if (!task.isSuccessful()) {
                         Log.w("FCM", "Fetching FCM token failed", task.getException());
+                        Toast.makeText(this, "FCM token fetch failed. Try again.", Toast.LENGTH_SHORT).show();
+                        btnLogin.setEnabled(true);
                         return;
                     }
+
                     fcmToken = task.getResult();
                     Log.d("FCM", "Token: " + fcmToken);
+                    btnLogin.setEnabled(true);
                 });
     }
 
@@ -99,6 +134,11 @@ public class MainActivity extends BaseActivity {
 
         if (username.isEmpty() || password.isEmpty()) {
             Toast.makeText(this, "Please enter username and password", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        if (fcmToken == null || fcmToken.isEmpty()) {
+            Toast.makeText(this, "FCM Token not ready. Please wait.", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -117,31 +157,34 @@ public class MainActivity extends BaseActivity {
                     jsonBody,
                     response -> {
                         Log.d("API_LOGIN", "Login response: " + response.toString());
-
                         try {
                             JSONObject result = response.getJSONObject("RESULT");
+                            String flag = result.getString("p_out_mssg_flg");
+                            String message = result.getString("p_out_mssg");
 
-                            // Check for expected fields
-                            if (!result.has("user_id")) {
-                                throw new Exception("Missing user_id in response");
+                            if (!flag.equals("S")) {
+                                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                                btnLogin.setEnabled(true);
+                                return;
                             }
 
                             int userId = result.getInt("user_id");
-
-                            // ✅ Now show login success toast
-                            Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
 
                             SharedPreferences.Editor editor = getSharedPreferences("user_session", MODE_PRIVATE).edit();
                             editor.putBoolean("is_logged_in", true);
                             editor.putString("username", username);
                             editor.putInt("user_id", userId);
+                            editor.putString("fcm_token", fcmToken);
                             editor.apply();
+
+                            Toast.makeText(this, "Login Successful!", Toast.LENGTH_SHORT).show();
 
                             Intent intent = new Intent(MainActivity.this, DashboardActivity.class);
                             intent.putExtra("username", username);
                             intent.putExtra("user_id", userId);
                             startActivity(intent);
                             finish();
+
                         } catch (Exception e) {
                             Log.e("API_LOGIN", "Parsing error: " + e.getMessage());
                             Toast.makeText(this, "Invalid username or password", Toast.LENGTH_SHORT).show();
@@ -162,7 +205,7 @@ public class MainActivity extends BaseActivity {
                     }
             ) {
                 @Override
-                public Map<String, String> getHeaders() throws AuthFailureError {
+                public Map<String, String> getHeaders() {
                     Map<String, String> headers = new HashMap<>();
                     headers.put("Content-Type", "application/json");
                     headers.put("x-api-key", AppConfig.API_KEY);
@@ -178,5 +221,4 @@ public class MainActivity extends BaseActivity {
             Toast.makeText(this, "Something went wrong", Toast.LENGTH_SHORT).show();
         }
     }
-
 }

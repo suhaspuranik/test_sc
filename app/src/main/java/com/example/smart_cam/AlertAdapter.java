@@ -1,5 +1,6 @@
 package com.example.smart_cam;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
@@ -36,10 +37,12 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
 
     private Context context;
     private List<AlertItem> alertList;
+    private String loggedInUsername;
 
-    public AlertAdapter(Context context, List<AlertItem> alertList, int loggedInUserId) {
+    public AlertAdapter(Context context, List<AlertItem> alertList, String loggedInUsername) {
         this.context = context;
         this.alertList = alertList;
+        this.loggedInUsername = loggedInUsername;
     }
 
     @NonNull
@@ -50,7 +53,7 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
     }
 
     @Override
-    public void onBindViewHolder(@NonNull AlertViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull AlertViewHolder holder, @SuppressLint("RecyclerView") int position) {
         AlertItem alert = alertList.get(position);
 
         holder.title.setText(alert.getTitle());
@@ -58,7 +61,14 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
         holder.location.setText(alert.getLocation());
         holder.time.setText(formatTimestamp(alert.getTime()));
         holder.severity.setText("Severity: " + alert.getSeverity());
-        holder.attendedUser.setText("Attended by User: " + alert.getAttendedUser());
+
+        // Handle attended user display
+        String attendedUser = alert.getAttendedUser();
+        if (attendedUser == null || attendedUser.equals("N/A") || attendedUser.isEmpty()) {
+            holder.attendedUser.setText("Attended by User: Not assigned");
+        } else {
+            holder.attendedUser.setText("Attended by User: " + attendedUser);
+        }
 
         String status = alert.getStatus().toLowerCase(Locale.ROOT);
         holder.status.setText(capitalizeFirst(status));
@@ -74,21 +84,18 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
                 holder.btnAttend.setVisibility(View.VISIBLE);
                 holder.btnResolveAlert.setVisibility(View.GONE);
                 break;
-
             case "attending":
                 holder.status.setBackgroundResource(R.drawable.status_attending_background);
                 holder.status.setTextColor(ContextCompat.getColor(context, R.color.white));
                 holder.btnAttend.setVisibility(View.GONE);
                 holder.btnResolveAlert.setVisibility(View.VISIBLE);
                 break;
-
             case "resolved":
                 holder.status.setBackgroundResource(R.drawable.status_resolved_background);
                 holder.status.setTextColor(ContextCompat.getColor(context, R.color.white));
                 holder.btnAttend.setVisibility(View.GONE);
                 holder.btnResolveAlert.setVisibility(View.GONE);
                 break;
-
             default:
                 holder.btnAttend.setVisibility(View.GONE);
                 holder.btnResolveAlert.setVisibility(View.GONE);
@@ -100,37 +107,53 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
             AlertDialog loadingDialog = showLoadingDialog(context, "Attending alert...");
 
             if (context instanceof DashboardActivity) {
-                ((DashboardActivity) context).manageAlert(alert.getId(), "attending");
-                alert.setStatus("attending");
-                notifyItemChanged(position);
+                ((DashboardActivity) context).manageAlert(alert.getId(), "attending", new DashboardActivity.AlertStatusCallback() {
+                    @Override
+                    public void onSuccess() {
+                        holder.btnAttend.setEnabled(true);
+                        loadingDialog.dismiss();
+                    }
+
+                    @Override
+                    public void onFailure() {
+                        Toast.makeText(context, "Failed to update status", Toast.LENGTH_SHORT).show();
+                        holder.btnAttend.setEnabled(true);
+                        loadingDialog.dismiss();
+                    }
+                });
             } else {
                 Toast.makeText(context, "Action failed", Toast.LENGTH_SHORT).show();
                 holder.btnAttend.setEnabled(true);
+                loadingDialog.dismiss();
             }
-
-            loadingDialog.dismiss();
         });
-
 
         holder.btnResolveAlert.setOnClickListener(v -> {
             holder.btnResolveAlert.setEnabled(false);
             AlertDialog loadingDialog = showLoadingDialog(context, "Resolving alert...");
 
             if (context instanceof DashboardActivity) {
-                ((DashboardActivity) context).manageAlert(alert.getId(), "resolved");
-                alert.setStatus("resolved");
-                notifyItemChanged(position);
+                ((DashboardActivity) context).manageAlert(alert.getId(), "resolved", new DashboardActivity.AlertStatusCallback() {
+                    @Override
+                    public void onSuccess() {
+                        holder.btnResolveAlert.setEnabled(true);
+                        loadingDialog.dismiss();
+                    }
+
+                    @Override
+                    public void onFailure() {
+                        Toast.makeText(context, "Failed to resolve alert", Toast.LENGTH_SHORT).show();
+                        holder.btnResolveAlert.setEnabled(true);
+                        loadingDialog.dismiss();
+                    }
+                });
             } else {
                 Toast.makeText(context, "Action failed", Toast.LENGTH_SHORT).show();
                 holder.btnResolveAlert.setEnabled(true);
+                loadingDialog.dismiss();
             }
-
-            loadingDialog.dismiss();
         });
-
-
     }
-
 
     @Override
     public int getItemCount() {
@@ -162,7 +185,7 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
             jsonBody.put("alert_id", alertId);
             jsonBody.put("stage", "dev");
 
-            Log.d("FETCH_LOCATION", "Sending request: " + jsonBody.toString());
+            Log.d("FETCH_LOCATION", "Sending request: " + jsonBody);
 
             JsonObjectRequest request = new JsonObjectRequest(
                     Request.Method.POST,
@@ -170,11 +193,8 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
                     jsonBody,
                     response -> {
                         try {
-
-
-                            Log.e("resp",response.toString());
+                            Log.e("RESP", response.toString());
                             JSONObject result = response.getJSONObject("RESULT");
-
                             String status = result.optString("p_out_mssg_flg", "E");
                             String message = result.optString("p_out_mssg", "No message");
 
@@ -189,19 +209,15 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
                             } else {
                                 showErrorPopup(context, message);
                             }
-
                         } catch (Exception e) {
                             Log.e("FETCH_LOCATION", "Parse error: " + e.getMessage());
-                            e.printStackTrace();
                             showErrorPopup(context, "Error parsing response");
                         }
-
                     },
                     error -> {
                         Toast.makeText(context, "Location fetch failed", Toast.LENGTH_SHORT).show();
                         Log.e("FETCH_LOCATION", "Volley error: " + error.toString());
                     }) {
-
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
                     Map<String, String> headers = new HashMap<>();
@@ -215,21 +231,18 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
 
         } catch (Exception e) {
             Log.e("FETCH_LOCATION", "Request error: " + e.getMessage());
-            e.printStackTrace();
         }
     }
 
     private void showLocationPopup(Context context, String latitude, String longitude, String location) {
-        if (!(context instanceof Activity) || ((Activity) context).isFinishing()) {
-            return;
-        }
+        if (!(context instanceof Activity) || ((Activity) context).isFinishing()) return;
 
         View popupView = LayoutInflater.from(context).inflate(R.layout.popup_location, null);
         TextView latitudeText = popupView.findViewById(R.id.tv_latitude);
         TextView longitudeText = popupView.findViewById(R.id.tv_longitude);
         TextView locationText = popupView.findViewById(R.id.tv_location);
         Button okButton = popupView.findViewById(R.id.btn_ok);
-        Button viewInMapsButton = popupView.findViewById(R.id.btn_view_in_maps); // Make sure this button exists in your XML
+        Button viewInMapsButton = popupView.findViewById(R.id.btn_view_in_maps);
 
         latitudeText.setText("Latitude: " + latitude);
         longitudeText.setText("Longitude: " + longitude);
@@ -255,11 +268,8 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
         dialog.show();
     }
 
-
     private void showErrorPopup(Context context, String message) {
-        if (!(context instanceof Activity) || ((Activity) context).isFinishing()) {
-            return;
-        }
+        if (!(context instanceof Activity) || ((Activity) context).isFinishing()) return;
 
         View popupView = LayoutInflater.from(context).inflate(R.layout.popup_location, null);
         TextView latitudeText = popupView.findViewById(R.id.tv_latitude);
@@ -291,7 +301,6 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
             SimpleDateFormat outputFormat = new SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault());
             return outputFormat.format(date);
         } catch (Exception e) {
-            e.printStackTrace();
             return rawTimestamp;
         }
     }
@@ -308,5 +317,4 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
         dialog.show();
         return dialog;
     }
-
 }
