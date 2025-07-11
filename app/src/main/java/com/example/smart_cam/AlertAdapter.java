@@ -38,6 +38,8 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
     private Context context;
     private List<AlertItem> alertList;
     private String loggedInUsername;
+    private AlertDialog currentLocationDialog = null;
+
 
     public AlertAdapter(Context context, List<AlertItem> alertList, String loggedInUsername) {
         this.context = context;
@@ -237,6 +239,10 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
     private void showLocationPopup(Context context, String latitude, String longitude, String location) {
         if (!(context instanceof Activity) || ((Activity) context).isFinishing()) return;
 
+        if (currentLocationDialog != null && currentLocationDialog.isShowing()) {
+            currentLocationDialog.dismiss();
+        }
+
         View popupView = LayoutInflater.from(context).inflate(R.layout.popup_location, null);
         TextView latitudeText = popupView.findViewById(R.id.tv_latitude);
         TextView longitudeText = popupView.findViewById(R.id.tv_longitude);
@@ -248,11 +254,14 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
         longitudeText.setText("Longitude: " + longitude);
         locationText.setText("Location: " + capitalizeFirst(location));
 
-        AlertDialog dialog = new AlertDialog.Builder((Activity) context)
+        currentLocationDialog = new AlertDialog.Builder((Activity) context)
                 .setView(popupView)
                 .create();
 
-        okButton.setOnClickListener(v -> dialog.dismiss());
+        okButton.setOnClickListener(v -> {
+            currentLocationDialog.dismiss();
+            currentLocationDialog = null; // Clear reference after dismissal
+        });
 
         viewInMapsButton.setOnClickListener(v -> {
             try {
@@ -265,11 +274,15 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
             }
         });
 
-        dialog.show();
+        currentLocationDialog.show();
     }
 
     private void showErrorPopup(Context context, String message) {
         if (!(context instanceof Activity) || ((Activity) context).isFinishing()) return;
+
+        if (currentLocationDialog != null && currentLocationDialog.isShowing()) {
+            currentLocationDialog.dismiss();
+        }
 
         View popupView = LayoutInflater.from(context).inflate(R.layout.popup_location, null);
         TextView latitudeText = popupView.findViewById(R.id.tv_latitude);
@@ -281,12 +294,16 @@ public class AlertAdapter extends RecyclerView.Adapter<AlertAdapter.AlertViewHol
         longitudeText.setText("");
         locationText.setText(message);
 
-        AlertDialog dialog = new AlertDialog.Builder((Activity) context)
+        currentLocationDialog = new AlertDialog.Builder((Activity) context)
                 .setView(popupView)
                 .create();
 
-        okButton.setOnClickListener(v -> dialog.dismiss());
-        dialog.show();
+        okButton.setOnClickListener(v -> {
+            currentLocationDialog.dismiss();
+            currentLocationDialog = null;
+        });
+
+        currentLocationDialog.show();
     }
 
     private String capitalizeFirst(String str) {
