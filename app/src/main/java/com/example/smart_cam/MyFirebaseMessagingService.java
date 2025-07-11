@@ -110,7 +110,9 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
                 .setContentIntent(pendingIntent);
 
         if (manager != null) {
-            manager.notify(1, builder.build());
+//            manager.notify(1, builder.build());
+            int notificationId = (int) System.currentTimeMillis();
+            manager.notify(notificationId, builder.build());
         }
     }
 }
