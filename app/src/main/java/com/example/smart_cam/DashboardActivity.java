@@ -16,6 +16,7 @@ import com.android.volley.Request;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.example.smart_cam.network.VolleySingleton;
 import com.example.smart_cam.utils.AppConfig;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -25,9 +26,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-
-import org.json.JSONException;
-
 
 public class DashboardActivity extends BaseActivity {
 
@@ -47,12 +45,10 @@ public class DashboardActivity extends BaseActivity {
         void onFailure();
     }
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
-
 
         username = getIntent().getStringExtra("username");
         userId = getIntent().getIntExtra("user_id", -1);
@@ -64,6 +60,7 @@ public class DashboardActivity extends BaseActivity {
         tabResolved = findViewById(R.id.btnResolved);
         btnLogout = findViewById(R.id.btnLogout);
         recyclerView = findViewById(R.id.recyclerView);
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
 
         adapter = new AlertAdapter(this, filteredAlertList, username);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -95,6 +92,36 @@ public class DashboardActivity extends BaseActivity {
 
         btnLogout.setOnClickListener(v -> logoutUser());
 
+        // Set up BottomNavigationView listener
+        bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
+            Log.d("NAVIGATION", "Item clicked: " + item.getItemId());
+            int itemId = item.getItemId();
+            if (itemId == R.id.nav_home) {
+                Log.d("NAVIGATION", "Home selected");
+                return true;
+            } else if (itemId == R.id.nav_add) {
+                Log.d("NAVIGATION", "Add selected");
+                try {
+                    Intent intent = new Intent(DashboardActivity.this, AddReportingActivity.class);
+                    startActivity(intent);
+                    Log.d("NAVIGATION", "AddReportingActivity started");
+                    return true;
+                } catch (Exception e) {
+                    Log.e("NAVIGATION", "Error starting AddReportingActivity: " + e.getMessage());
+                    Toast.makeText(this, "Error opening Add page: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    return false;
+                }
+            } else if (itemId == R.id.nav_menu) {
+                Log.d("NAVIGATION", "Menu selected");
+                Toast.makeText(this, "Menu clicked", Toast.LENGTH_SHORT).show();
+                return true;
+            }
+            return false;
+        });
+
+        // Highlight Home tab as selected
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
+
         fetchAlerts();
         highlightSelectedTab(tabPending);
     }
@@ -116,7 +143,6 @@ public class DashboardActivity extends BaseActivity {
                             for (int i = 0; i < arr.length(); i++) {
                                 JSONObject obj = arr.getJSONObject(i);
                                 String attendedUser = obj.optString("attended_user", "N/A");
-                                // Log the attended_user to debug
                                 Log.d("API_FETCH_ALERTS", "Alert ID: " + obj.getInt("alert_id") + ", Attended User: " + attendedUser);
                                 fullAlertList.add(new AlertItem(
                                         obj.getInt("alert_id"),
@@ -126,7 +152,7 @@ public class DashboardActivity extends BaseActivity {
                                         obj.getString("date"),
                                         obj.getString("status").toLowerCase(Locale.ROOT),
                                         obj.optString("severity", "N/A"),
-                                        attendedUser // Use the parsed value directly
+                                        attendedUser
                                 ));
                             }
                             Collections.sort(fullAlertList, (a1, a2) -> a2.getTime().compareTo(a1.getTime()));
@@ -187,7 +213,7 @@ public class DashboardActivity extends BaseActivity {
             jsonBody.put("status", newStatus);
             jsonBody.put("stage", "dev");
             if (newStatus.equalsIgnoreCase("attending")) {
-                jsonBody.put("attended_user", username); // Send username when attending
+                jsonBody.put("attended_user", username);
             }
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
@@ -202,20 +228,17 @@ public class DashboardActivity extends BaseActivity {
                             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
 
                             if (flag.equalsIgnoreCase("S")) {
-                                // Update the alert in fullAlertList
                                 for (AlertItem alert : fullAlertList) {
                                     if (alert.getId() == alertId) {
                                         alert.setStatus(newStatus.toLowerCase(Locale.ROOT));
                                         if (newStatus.equalsIgnoreCase("attending")) {
-                                            alert.setAttendedUser(username); // Update attended_user locally
+                                            alert.setAttendedUser(username);
                                         } else if (newStatus.equalsIgnoreCase("resolved")) {
-                                            // Optionally retain or clear attended_user for resolved alerts
-                                            alert.setAttendedUser(alert.getAttendedUser()); // Keep existing or set to null if needed
+                                            alert.setAttendedUser(alert.getAttendedUser());
                                         }
                                         break;
                                     }
                                 }
-                                // Refresh the filtered list and notify adapter
                                 filterAlerts();
                                 if (callback != null) callback.onSuccess();
                             } else {
@@ -257,7 +280,6 @@ public class DashboardActivity extends BaseActivity {
         }
     }
 
-
     private void logoutUser() {
         try {
             SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
@@ -275,6 +297,7 @@ public class DashboardActivity extends BaseActivity {
                 Toast.makeText(this, "Invalid session. Please log in again.", Toast.LENGTH_SHORT).show();
                 Intent intent = new Intent(DashboardActivity.this, MainActivity.class);
                 startActivity(intent);
+                finish();
                 return;
             }
 
@@ -293,10 +316,8 @@ public class DashboardActivity extends BaseActivity {
                             String message = result.getString("p_out_mssg");
 
                             if (flag.equals("S")) {
-                                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-
+                                Toast.makeText(this, "Logout successful", Toast.LENGTH_SHORT).show();
                                 getSharedPreferences("user_session", MODE_PRIVATE).edit().clear().apply();
-
                                 startActivity(new Intent(DashboardActivity.this, MainActivity.class));
                                 finish();
                             } else {
@@ -335,15 +356,11 @@ public class DashboardActivity extends BaseActivity {
         }
     }
 
-
-
-
     private void highlightSelectedTab(TextView selectedTab) {
         tabAll.setBackgroundResource(R.drawable.tab_unselected);
         tabPending.setBackgroundResource(R.drawable.tab_unselected);
         tabAttending.setBackgroundResource(R.drawable.tab_unselected);
         tabResolved.setBackgroundResource(R.drawable.tab_unselected);
-
         selectedTab.setBackgroundResource(R.drawable.tab_selected);
     }
 }

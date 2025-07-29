@@ -33,7 +33,29 @@
             </intent-filter>
         </activity>
 
-        <activity android:name="com.example.smart_cam.DashboardActivity" />
+        <activity
+            android:name="com.example.smart_cam.DashboardActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.smart_cam.AddReportingActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.smart_cam.ReportingOptionsActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.smart_cam.SolarFenceActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.smart_cam.VillageSelectionActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.smart_cam.ReportVillageActivity"
+            android:exported="false" />
 
         <service
             android:name="com.example.smart_cam.MyFirebaseMessagingService"

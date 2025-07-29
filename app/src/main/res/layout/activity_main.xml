@@ -58,7 +58,9 @@
                 android:importantForAutofill="no"
                 android:textColorHint="@color/dark_gray"
                 android:textCursorDrawable="@null"
-                android:backgroundTint="@color/gray" />
+                android:backgroundTint="@color/gray"
+                android:maxLines="1" />
+
         </LinearLayout>
 
         <TextView

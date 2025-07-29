@@ -24,7 +24,10 @@
     <color name="checkbox_tint">#4CAF50</color>
         <color name="light_status_bar_bg">#333333</color>
         <color name="dark_status_bar_bg">#000000</color>
-
+    <color name="background_light">#F5F7FA</color>
+    <color name="primary_text">#1A237E</color>
+    <color name="primary_blue">#0288D1</color>
+    <color name="accent_blue">#4FC3F7</color>
 
 </resources>
 

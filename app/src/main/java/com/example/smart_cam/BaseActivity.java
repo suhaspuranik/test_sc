@@ -31,4 +31,5 @@ public class BaseActivity extends AppCompatActivity {
             getWindow().setStatusBarColor(ContextCompat.getColor(this, R.color.dark_status_bar_fallback));
         }
     }
+
 }
