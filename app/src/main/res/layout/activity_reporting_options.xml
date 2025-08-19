@@ -45,7 +45,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="16dp"
-        android:background="@drawable/rounded_container_border"
+        android:background="@drawable/rounded_container_background"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         android:elevation="4dp"
@@ -61,14 +61,14 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="12dp"
-            android:background="@color/white">
+            android:background="@color/card_background">
 
             <RadioButton
                 android:id="@+id/rb_elephant_movement"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Elephant Movement"
-                android:textColor="@color/black"
+                android:textColor="@color/textColor"
                 android:textSize="18sp"
                 android:padding="12dp"
                 android:buttonTint="@color/green"
@@ -79,7 +79,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="No Elephant Movement"
-                android:textColor="@color/black"
+                android:textColor="@color/textColor"
                 android:textSize="18sp"
                 android:padding="12dp"
                 android:buttonTint="@color/green"
