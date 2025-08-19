@@ -13,7 +13,7 @@
         android:layout_height="wrap_content"
         android:paddingTop="10dp"
         android:text="Reporting Options"
-        android:textColor="@color/green"
+        android:textColor="@color/textColor"
         android:textSize="22sp"
         android:textStyle="bold"
         app:layout_constraintTop_toTopOf="parent"
@@ -72,6 +72,7 @@
                 android:textSize="18sp"
                 android:padding="12dp"
                 android:buttonTint="@color/green"
+                android:background="@android:color/transparent"
                 android:layout_marginBottom="8dp" />
 
             <RadioButton
@@ -83,6 +84,7 @@
                 android:textSize="18sp"
                 android:padding="12dp"
                 android:buttonTint="@color/green"
+                android:background="@android:color/transparent"
                 android:layout_marginBottom="8dp" />
 
         </RadioGroup>
@@ -108,7 +110,7 @@
         android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/tab_unselected"
+        android:background="@color/card_background"
         android:elevation="4dp"
         app:menu="@menu/bottom_nav_menu"
         app:labelVisibilityMode="unlabeled"
