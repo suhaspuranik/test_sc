@@ -652,6 +652,251 @@ public class ReportVillageActivity extends BaseActivity {
         }
     }
 
+    private void submitSolarFenceReport(int sessionUserId, ArrayList<Integer> villageIds) {
+        Log.d(TAG, "Submitting report type " + reportTypeId + " for villages: " + villageIds.toString());
+
+        // Build payload per procedure rules for report types 4 and 5: no animal_found, no area_ids
+        String passedDescription = getIntent().getStringExtra("REPORT_DESCRIPTION");
+        String description = (passedDescription != null && !passedDescription.isEmpty()) ? passedDescription : "Report";
+        Log.d(TAG, "Report details - description: " + description);
+        Log.d(TAG, "Report type ID: " + reportTypeId);
+        Log.d(TAG, "Village IDs being sent: " + villageIds.toString());
+
+        JSONObject jsonInput = new JSONObject();
+        try {
+            jsonInput.put("user_id", sessionUserId);
+            jsonInput.put("report_type_id", reportTypeId);
+            jsonInput.put("description", description);
+            // Do NOT include animal_found or area_ids for report types 4/5
+            Log.d(TAG, "Excluding animal_found and area_ids for report type " + reportTypeId);
+            jsonInput.put("stage", "dev");
+        } catch (Exception e) {
+            Log.e(TAG, "Error building solar fence request body: " + e.getMessage(), e);
+            showToast("Error preparing request");
+            return;
+        }
+
+        Log.d(TAG, "Report JSON request: " + jsonInput.toString());
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                Request.Method.POST,
+                AppConfig.REPORT_TYPE,
+                jsonInput,
+                response -> {
+                    Log.d(TAG, "Report submission response: " + response.toString());
+                    try {
+                        String flag = "";
+                        String message = "";
+
+                        if (response.has("RESULT")) {
+                            JSONArray resultArray = response.getJSONArray("RESULT");
+                            if (resultArray.length() > 0) {
+                                JSONObject resultItem = resultArray.getJSONObject(0);
+                                flag = resultItem.optString("p_out_mssg_flg", "");
+                                message = resultItem.optString("p_out_mssg", "");
+                            }
+                        } else {
+                            flag = response.optString("p_out_mssg_flg", "");
+                            message = response.optString("p_out_mssg", "");
+                        }
+
+                        Log.d(TAG, "Parsed - flag: " + flag + ", message: " + message);
+
+                        if ("S".equals(flag)) {
+                            int reportId = parseReportIdFromMessage(message);
+                            if (reportId != -1) {
+                                Log.d(TAG, "Report submitted successfully with ID: " + reportId + ". Now calling submitReportAlert for villages: " + villageIds.toString());
+                                submitReportAlert(sessionUserId, reportId, villageIds);
+                            } else {
+                                Log.e(TAG, "Failed to parse report ID from message: " + message);
+                                showToast("Failed to parse report ID from message");
+                            }
+                        } else {
+                            Log.e(TAG, "Report submission failed with flag: " + flag + ", message: " + message);
+                            showToast(message);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing response: " + e.getMessage(), e);
+                        showToast("Error processing response: " + e.getMessage());
+                    }
+                },
+                error -> {
+                    Log.e(TAG, "Report Volley error: " + error.getMessage(), error);
+                    String errorMsg = "Failed to submit report";
+
+                    if (error.networkResponse != null) {
+                        int statusCode = error.networkResponse.statusCode;
+                        String responseData = new String(error.networkResponse.data);
+                        Log.e(TAG, "Report HTTP error " + statusCode + ": " + responseData);
+
+                        if (statusCode == 401 || statusCode == 403) {
+                            showToast("Authentication error: Please log in again");
+                            return;
+                        }
+                        errorMsg = "HTTP " + statusCode + ": " + responseData;
+                    }
+
+                    showToast("Failed to submit report: " + errorMsg);
+                }
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json");
+                headers.put("x-api-key", AppConfig.API_KEY);
+                Log.d(TAG, "Report request headers: " + headers.toString());
+                return headers;
+            }
+        };
+
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                30000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
+        Log.d(TAG, "Submitting report to: " + AppConfig.REPORT_TYPE);
+        VolleySingleton.getInstance(this).addToRequestQueue(request);
+    }
+
+    private void submitRegularReport(int sessionUserId, ArrayList<Integer> villageIds) {
+        Log.d(TAG, "Submitting regular report for villages: " + villageIds.toString());
+
+        boolean noElephantFound = getIntent().getBooleanExtra("NO_ELEPHANT_FOUND", false);
+        String animalFound = noElephantFound ? "N" : "Y";
+        String description = noElephantFound ? reportingType + " report: No elephant movement" : reportingType + " report";
+
+        Log.d(TAG, "Regular report details - animal_found: " + animalFound + ", description: " + description + ", no_elephant_found: " + noElephantFound);
+        Log.d(TAG, "Report type ID: " + reportTypeId);
+        Log.d(TAG, "Village IDs being sent: " + villageIds.toString());
+
+        JSONObject jsonInput = new JSONObject();
+        try {
+            jsonInput.put("user_id", sessionUserId);
+            jsonInput.put("report_type_id", reportTypeId);
+            jsonInput.put("description", description);
+
+            if (reportTypeId == 1 || reportTypeId == 2 || reportTypeId == 3) {
+                // Types 1-3: animal_found required; area_ids only when animal_found = 'Y'
+                jsonInput.put("animal_found", animalFound);
+                if (!noElephantFound) {
+                    // For Elephant Found flow, area_ids must be the previously selected areas
+                    if ((selectedAreaIds == null || selectedAreaIds.isEmpty())) {
+                        // Try to recover from intent in case field wasn't set earlier
+                        ArrayList<Integer> intentAreaIds = getIntent().getIntegerArrayListExtra("SELECTED_AREA_IDS");
+                        if (intentAreaIds != null && !intentAreaIds.isEmpty()) {
+                            selectedAreaIds = new ArrayList<>(intentAreaIds);
+                            Log.w(TAG, "Recovered selectedAreaIds from intent: " + selectedAreaIds);
+                        }
+                    }
+
+                    if (selectedAreaIds == null || selectedAreaIds.isEmpty()) {
+                        Log.e(TAG, "No selected areas available for Elephant Found. Aborting to avoid sending village IDs as area_ids.");
+                        showToast("Missing selected areas. Please go back and select areas again.");
+                        return;
+                    }
+
+                    JSONArray areaIdsArray = new JSONArray(selectedAreaIds);
+                    jsonInput.put("area_ids", areaIdsArray);
+                    Log.d(TAG, "Including area_ids from selectedAreaIds for report type " + reportTypeId + ": " + selectedAreaIds);
+                } else {
+                    Log.d(TAG, "Excluding area_ids for animal_found = N on report type " + reportTypeId);
+                }
+            } else if (reportTypeId == 4 || reportTypeId == 5) {
+                // Types 4-5: animal_found and area_ids must NOT be provided
+                Log.d(TAG, "Excluding animal_found and area_ids for report type " + reportTypeId);
+            }
+
+            jsonInput.put("stage", "dev");
+        } catch (Exception e) {
+            Log.e(TAG, "Error building request body: " + e.getMessage(), e);
+            showToast("Error preparing request");
+            return;
+        }
+
+        Log.d(TAG, "Regular report JSON request: " + jsonInput.toString());
+
+        JsonObjectRequest request = new JsonObjectRequest(
+                Request.Method.POST,
+                AppConfig.REPORT_TYPE,
+                jsonInput,
+                response -> {
+                    Log.d(TAG, "Report submission response: " + response.toString());
+                    try {
+                        String flag = "";
+                        String message = "";
+
+                        if (response.has("RESULT")) {
+                            JSONArray resultArray = response.getJSONArray("RESULT");
+                            if (resultArray.length() > 0) {
+                                JSONObject resultItem = resultArray.getJSONObject(0);
+                                flag = resultItem.optString("p_out_mssg_flg", "");
+                                message = resultItem.optString("p_out_mssg", "");
+                            }
+                        } else {
+                            flag = response.optString("p_out_mssg_flg", "");
+                            message = response.optString("p_out_mssg", "");
+                        }
+
+                        Log.d(TAG, "Parsed - flag: " + flag + ", message: " + message);
+
+                        if ("S".equals(flag)) {
+                            int reportId = parseReportIdFromMessage(message);
+                            if (reportId != -1) {
+                                Log.d(TAG, "Report submitted successfully with ID: " + reportId + ". Now calling submitReportAlert for villages: " + villageIds.toString());
+                                submitReportAlert(sessionUserId, reportId, villageIds);
+                            } else {
+                                Log.e(TAG, "Failed to parse report ID from message: " + message);
+                                showToast("Failed to parse report ID from message");
+                            }
+                        } else {
+                            Log.e(TAG, "Report submission failed with flag: " + flag + ", message: " + message);
+                            showToast(message);
+                        }
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error parsing report response: " + e.getMessage(), e);
+                        showToast("Error processing response: " + e.getMessage());
+                    }
+                },
+                error -> {
+                    Log.e(TAG, "Report submission Volley error: " + error.getMessage(), error);
+                    String errorMsg = "Failed to submit report";
+
+                    if (error.networkResponse != null) {
+                        int statusCode = error.networkResponse.statusCode;
+                        String responseData = new String(error.networkResponse.data);
+                        Log.e(TAG, "Report submission HTTP error " + statusCode + ": " + responseData);
+
+                        if (statusCode == 401 || statusCode == 403) {
+                            showToast("Authentication error: Please log in again");
+                            return;
+                        }
+                        errorMsg = "HTTP " + statusCode + ": " + responseData;
+                    }
+
+                    showToast("Failed to submit report: " + errorMsg);
+                }
+        ) {
+            @Override
+            public Map<String, String> getHeaders() {
+                Map<String, String> headers = new HashMap<>();
+                headers.put("Content-Type", "application/json");
+                headers.put("x-api-key", AppConfig.API_KEY);
+                Log.d(TAG, "Report submission request headers: " + headers.toString());
+                return headers;
+            }
+        };
+
+        request.setRetryPolicy(new DefaultRetryPolicy(
+                30000,
+                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
+                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
+        ));
+
+        Log.d(TAG, "Submitting report to: " + AppConfig.REPORT_TYPE);
+        VolleySingleton.getInstance(this).addToRequestQueue(request);
+    }
+
     private int parseReportIdFromMessage(String message) {
         try {
             // Example message: "Report submitted successfully. Report ID: 31"
