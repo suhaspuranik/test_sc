@@ -35,16 +35,24 @@ import java.util.Map;
 import java.util.Set;
 import android.content.SharedPreferences;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.example.smart_cam.ui.CheckboxListAdapter;
+
 public class ReportVillageActivity extends BaseActivity {
     private static final String TAG = "ReportVillageActivity";
     private String reportingType;
     private int reportTypeId;
     private List<Area> areas;
-    private AreaAdapter adapter;
+    private AreaAdapter legacyAdapter;
     private ListView lvAreas; // Move to class level
     private boolean isElephantFoundScenario = false;
     private boolean isAreasSelectionPhase = false;
     private ArrayList<Integer> selectedAreaIds = new ArrayList<>();
+
+    // New RecyclerView + Adapter
+    private RecyclerView rvAreas;
+    private CheckboxListAdapter adapter;
 
     private class Area {
         int id;
@@ -87,10 +95,16 @@ public class ReportVillageActivity extends BaseActivity {
 
         // Initialize UI elements
         TextView tvTitle = findViewById(R.id.tv_title);
-        lvAreas = findViewById(R.id.lv_villages);
+        // Legacy ListView (no longer used after migration)
+        lvAreas = null;
+        rvAreas = findViewById(R.id.rv_villages);
         Button btnSendShare = findViewById(R.id.btn_send_share);
         Button btnBack = findViewById(R.id.btn_back);
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+
+        if (rvAreas != null) {
+            rvAreas.setLayoutManager(new LinearLayoutManager(this));
+        }
 
         // Set title based on scenario
         boolean noElephantFound = getIntent().getBooleanExtra("NO_ELEPHANT_FOUND", false);
@@ -136,12 +150,6 @@ public class ReportVillageActivity extends BaseActivity {
         // Handle Send/Share button
         updateButtonText();
         btnSendShare.setOnClickListener(v -> {
-            // Debug: Log current selection state before proceeding
-            if (adapter != null) {
-                Log.d(TAG, "Button clicked. Current selection state: " + adapter.getSelectedAreasDebugInfo());
-                // Validate and fix any inconsistencies before proceeding
-                adapter.validateAndFixInconsistencies();
-            }
             if (adapter == null) {
                 showToast("Please wait while data is being loaded");
                 return;
@@ -149,7 +157,7 @@ public class ReportVillageActivity extends BaseActivity {
 
             if (isElephantFoundScenario && isAreasSelectionPhase) {
                 // In areas selection phase for elephant found scenario
-                ArrayList<Integer> selectedAreas = adapter.getSelectedAreaIds();
+                ArrayList<Integer> selectedAreas = adapter.getSelectedIds();
                 Log.d(TAG, "Areas selection phase - selected area IDs: " + selectedAreas.toString());
                 if (selectedAreas.isEmpty()) {
                     showToast("Please select at least one area");
@@ -159,7 +167,7 @@ public class ReportVillageActivity extends BaseActivity {
                 handleAreasSelectionPhase(selectedAreas);
             } else {
                 // In villages selection phase or other scenarios (including Solar Fence)
-                ArrayList<Integer> finalSelectedAreaIds = adapter.getSelectedAreaIds();
+                ArrayList<Integer> finalSelectedAreaIds = adapter.getSelectedIds();
                 Log.d(TAG, "Areas/Villages selection phase - selected IDs: " + finalSelectedAreaIds.toString());
                 if (finalSelectedAreaIds.isEmpty()) {
                     showToast("Please select at least one area/village");
@@ -169,23 +177,8 @@ public class ReportVillageActivity extends BaseActivity {
             }
         });
 
-        // Add scroll listener to debug scrolling issues
-        lvAreas.setOnScrollListener(new AbsListView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(AbsListView view, int scrollState) {
-                if (scrollState == SCROLL_STATE_IDLE && adapter != null) {
-                    // When scrolling stops, just log the state
-                    Log.d(TAG, "Scroll stopped. Selected areas: " + adapter.getSelectedAreasDebugInfo());
-                }
-            }
-
-            @Override
-            public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
-                // Optional: Log scroll events for debugging
-            }
-        });
-
-        // Set up bottom navigation
+        // Add scroll listener to debug scrolling issues (not needed for RecyclerView state, kept for parity)
+        // Bottom navigation
         bottomNavigationView.setSelectedItemId(R.id.nav_add);
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
@@ -321,8 +314,15 @@ public class ReportVillageActivity extends BaseActivity {
                         }
 
                         Log.d(TAG, "Successfully parsed " + areas.size() + " areas");
-                        adapter = new AreaAdapter(this, areas);
-                        lvAreas.setAdapter(adapter);
+                        // Bind to Recycler
+                        ArrayList<CheckboxListAdapter.Item> items = new ArrayList<>();
+                        for (Area a : areas) {
+                            items.add(new CheckboxListAdapter.Item(a.id, a.name));
+                        }
+                        adapter = new CheckboxListAdapter(this, items);
+                        if (rvAreas != null) {
+                            rvAreas.setAdapter(adapter);
+                        }
                         showToast("Areas loaded successfully: " + areas.size() + " found");
 
                         // Update title and button text for areas selection phase
@@ -503,8 +503,15 @@ public class ReportVillageActivity extends BaseActivity {
                         }
 
                         Log.d(TAG, "Successfully parsed " + areas.size() + " villages");
-                        adapter = new AreaAdapter(this, areas);
-                        lvAreas.setAdapter(adapter);
+                        // Bind to Recycler
+                        ArrayList<CheckboxListAdapter.Item> items = new ArrayList<>();
+                        for (Area a : areas) {
+                            items.add(new CheckboxListAdapter.Item(a.id, a.name));
+                        }
+                        adapter = new CheckboxListAdapter(this, items);
+                        if (rvAreas != null) {
+                            rvAreas.setAdapter(adapter);
+                        }
                         showToast("Villages loaded successfully: " + areas.size() + " found");
 
                         // Update title and button text for villages selection phase
@@ -643,251 +650,6 @@ public class ReportVillageActivity extends BaseActivity {
         } else {
             submitRegularReport(sessionUserId, villageIds);
         }
-    }
-
-    private void submitSolarFenceReport(int sessionUserId, ArrayList<Integer> villageIds) {
-        Log.d(TAG, "Submitting report type " + reportTypeId + " for villages: " + villageIds.toString());
-
-        // Build payload per procedure rules for report types 4 and 5: no animal_found, no area_ids
-        String passedDescription = getIntent().getStringExtra("REPORT_DESCRIPTION");
-        String description = (passedDescription != null && !passedDescription.isEmpty()) ? passedDescription : "Report";
-        Log.d(TAG, "Report details - description: " + description);
-        Log.d(TAG, "Report type ID: " + reportTypeId);
-        Log.d(TAG, "Village IDs being sent: " + villageIds.toString());
-
-        JSONObject jsonInput = new JSONObject();
-        try {
-            jsonInput.put("user_id", sessionUserId);
-            jsonInput.put("report_type_id", reportTypeId);
-            jsonInput.put("description", description);
-            // Do NOT include animal_found or area_ids for report types 4/5
-            Log.d(TAG, "Excluding animal_found and area_ids for report type " + reportTypeId);
-            jsonInput.put("stage", "dev");
-        } catch (Exception e) {
-            Log.e(TAG, "Error building solar fence request body: " + e.getMessage(), e);
-            showToast("Error preparing request");
-            return;
-        }
-
-        Log.d(TAG, "Report JSON request: " + jsonInput.toString());
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.POST,
-                AppConfig.REPORT_TYPE,
-                jsonInput,
-                response -> {
-                    Log.d(TAG, "Report submission response: " + response.toString());
-                    try {
-                        String flag = "";
-                        String message = "";
-
-                        if (response.has("RESULT")) {
-                            JSONArray resultArray = response.getJSONArray("RESULT");
-                            if (resultArray.length() > 0) {
-                                JSONObject resultItem = resultArray.getJSONObject(0);
-                                flag = resultItem.optString("p_out_mssg_flg", "");
-                                message = resultItem.optString("p_out_mssg", "");
-                            }
-                        } else {
-                            flag = response.optString("p_out_mssg_flg", "");
-                            message = response.optString("p_out_mssg", "");
-                        }
-
-                        Log.d(TAG, "Parsed - flag: " + flag + ", message: " + message);
-
-                        if ("S".equals(flag)) {
-                            int reportId = parseReportIdFromMessage(message);
-                            if (reportId != -1) {
-                                Log.d(TAG, "Report submitted successfully with ID: " + reportId + ". Now calling submitReportAlert for villages: " + villageIds.toString());
-                                submitReportAlert(sessionUserId, reportId, villageIds);
-                            } else {
-                                Log.e(TAG, "Failed to parse report ID from message: " + message);
-                                showToast("Failed to parse report ID from message");
-                            }
-                        } else {
-                            Log.e(TAG, "Report submission failed with flag: " + flag + ", message: " + message);
-                            showToast(message);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error parsing response: " + e.getMessage(), e);
-                        showToast("Error processing response: " + e.getMessage());
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Report Volley error: " + error.getMessage(), error);
-                    String errorMsg = "Failed to submit report";
-
-                    if (error.networkResponse != null) {
-                        int statusCode = error.networkResponse.statusCode;
-                        String responseData = new String(error.networkResponse.data);
-                        Log.e(TAG, "Report HTTP error " + statusCode + ": " + responseData);
-
-                        if (statusCode == 401 || statusCode == 403) {
-                            showToast("Authentication error: Please log in again");
-                            return;
-                        }
-                        errorMsg = "HTTP " + statusCode + ": " + responseData;
-                    }
-
-                    showToast("Failed to submit report: " + errorMsg);
-                }
-        ) {
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                headers.put("Content-Type", "application/json");
-                headers.put("x-api-key", AppConfig.API_KEY);
-                Log.d(TAG, "Report request headers: " + headers.toString());
-                return headers;
-            }
-        };
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                30000,
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-        ));
-
-        Log.d(TAG, "Submitting report to: " + AppConfig.REPORT_TYPE);
-        VolleySingleton.getInstance(this).addToRequestQueue(request);
-    }
-
-    private void submitRegularReport(int sessionUserId, ArrayList<Integer> villageIds) {
-        Log.d(TAG, "Submitting regular report for villages: " + villageIds.toString());
-
-        boolean noElephantFound = getIntent().getBooleanExtra("NO_ELEPHANT_FOUND", false);
-        String animalFound = noElephantFound ? "N" : "Y";
-        String description = noElephantFound ? reportingType + " report: No elephant movement" : reportingType + " report";
-
-        Log.d(TAG, "Regular report details - animal_found: " + animalFound + ", description: " + description + ", no_elephant_found: " + noElephantFound);
-        Log.d(TAG, "Report type ID: " + reportTypeId);
-        Log.d(TAG, "Village IDs being sent: " + villageIds.toString());
-
-        JSONObject jsonInput = new JSONObject();
-        try {
-            jsonInput.put("user_id", sessionUserId);
-            jsonInput.put("report_type_id", reportTypeId);
-            jsonInput.put("description", description);
-
-            if (reportTypeId == 1 || reportTypeId == 2 || reportTypeId == 3) {
-                // Types 1-3: animal_found required; area_ids only when animal_found = 'Y'
-                jsonInput.put("animal_found", animalFound);
-                if (!noElephantFound) {
-                    // For Elephant Found flow, area_ids must be the previously selected areas
-                    if ((selectedAreaIds == null || selectedAreaIds.isEmpty())) {
-                        // Try to recover from intent in case field wasn't set earlier
-                        ArrayList<Integer> intentAreaIds = getIntent().getIntegerArrayListExtra("SELECTED_AREA_IDS");
-                        if (intentAreaIds != null && !intentAreaIds.isEmpty()) {
-                            selectedAreaIds = new ArrayList<>(intentAreaIds);
-                            Log.w(TAG, "Recovered selectedAreaIds from intent: " + selectedAreaIds);
-                        }
-                    }
-
-                    if (selectedAreaIds == null || selectedAreaIds.isEmpty()) {
-                        Log.e(TAG, "No selected areas available for Elephant Found. Aborting to avoid sending village IDs as area_ids.");
-                        showToast("Missing selected areas. Please go back and select areas again.");
-                        return;
-                    }
-
-                    JSONArray areaIdsArray = new JSONArray(selectedAreaIds);
-                    jsonInput.put("area_ids", areaIdsArray);
-                    Log.d(TAG, "Including area_ids from selectedAreaIds for report type " + reportTypeId + ": " + selectedAreaIds);
-                } else {
-                    Log.d(TAG, "Excluding area_ids for animal_found = N on report type " + reportTypeId);
-                }
-            } else if (reportTypeId == 4 || reportTypeId == 5) {
-                // Types 4-5: animal_found and area_ids must NOT be provided
-                Log.d(TAG, "Excluding animal_found and area_ids for report type " + reportTypeId);
-            }
-
-            jsonInput.put("stage", "dev");
-        } catch (Exception e) {
-            Log.e(TAG, "Error building request body: " + e.getMessage(), e);
-            showToast("Error preparing request");
-            return;
-        }
-
-        Log.d(TAG, "Regular report JSON request: " + jsonInput.toString());
-
-        JsonObjectRequest request = new JsonObjectRequest(
-                Request.Method.POST,
-                AppConfig.REPORT_TYPE,
-                jsonInput,
-                response -> {
-                    Log.d(TAG, "Report submission response: " + response.toString());
-                    try {
-                        String flag = "";
-                        String message = "";
-
-                        if (response.has("RESULT")) {
-                            JSONArray resultArray = response.getJSONArray("RESULT");
-                            if (resultArray.length() > 0) {
-                                JSONObject resultItem = resultArray.getJSONObject(0);
-                                flag = resultItem.optString("p_out_mssg_flg", "");
-                                message = resultItem.optString("p_out_mssg", "");
-                            }
-                        } else {
-                            flag = response.optString("p_out_mssg_flg", "");
-                            message = response.optString("p_out_mssg", "");
-                        }
-
-                        Log.d(TAG, "Parsed - flag: " + flag + ", message: " + message);
-
-                        if ("S".equals(flag)) {
-                            int reportId = parseReportIdFromMessage(message);
-                            if (reportId != -1) {
-                                Log.d(TAG, "Report submitted successfully with ID: " + reportId + ". Now calling submitReportAlert for villages: " + villageIds.toString());
-                                submitReportAlert(sessionUserId, reportId, villageIds);
-                            } else {
-                                Log.e(TAG, "Failed to parse report ID from message: " + message);
-                                showToast("Failed to parse report ID from message");
-                            }
-                        } else {
-                            Log.e(TAG, "Report submission failed with flag: " + flag + ", message: " + message);
-                            showToast(message);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error parsing report response: " + e.getMessage(), e);
-                        showToast("Error processing response: " + e.getMessage());
-                    }
-                },
-                error -> {
-                    Log.e(TAG, "Report submission Volley error: " + error.getMessage(), error);
-                    String errorMsg = "Failed to submit report";
-
-                    if (error.networkResponse != null) {
-                        int statusCode = error.networkResponse.statusCode;
-                        String responseData = new String(error.networkResponse.data);
-                        Log.e(TAG, "Report submission HTTP error " + statusCode + ": " + responseData);
-
-                        if (statusCode == 401 || statusCode == 403) {
-                            showToast("Authentication error: Please log in again");
-                            return;
-                        }
-                        errorMsg = "HTTP " + statusCode + ": " + responseData;
-                    }
-
-                    showToast("Failed to submit report: " + errorMsg);
-                }
-        ) {
-            @Override
-            public Map<String, String> getHeaders() {
-                Map<String, String> headers = new HashMap<>();
-                headers.put("Content-Type", "application/json");
-                headers.put("x-api-key", AppConfig.API_KEY);
-                Log.d(TAG, "Report submission request headers: " + headers.toString());
-                return headers;
-            }
-        };
-
-        request.setRetryPolicy(new DefaultRetryPolicy(
-                30000,
-                DefaultRetryPolicy.DEFAULT_MAX_RETRIES,
-                DefaultRetryPolicy.DEFAULT_BACKOFF_MULT
-        ));
-
-        Log.d(TAG, "Submitting report to: " + AppConfig.REPORT_TYPE);
-        VolleySingleton.getInstance(this).addToRequestQueue(request);
     }
 
     private int parseReportIdFromMessage(String message) {
@@ -1075,8 +837,14 @@ public class ReportVillageActivity extends BaseActivity {
         areas.add(new Area(1, "Default Area 1"));
         areas.add(new Area(2, "Default Area 2"));
 
-        adapter = new AreaAdapter(this, areas);
-        lvAreas.setAdapter(adapter);
+        ArrayList<CheckboxListAdapter.Item> items = new ArrayList<>();
+        for (Area a : areas) {
+            items.add(new CheckboxListAdapter.Item(a.id, a.name));
+        }
+        adapter = new CheckboxListAdapter(this, items);
+        if (rvAreas != null) {
+            rvAreas.setAdapter(adapter);
+        }
         showToast("Using default areas. You can now proceed with the report.");
     }
 
@@ -1270,8 +1038,6 @@ public class ReportVillageActivity extends BaseActivity {
             Log.d(TAG, "Force refreshing all views to restore checkbox states");
             notifyDataSetChanged();
         }
-
-
 
         // Method to manually restore checkbox states for all visible items
         public void restoreCheckboxStates() {
