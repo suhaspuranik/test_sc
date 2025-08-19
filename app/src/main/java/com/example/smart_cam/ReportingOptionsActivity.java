@@ -1,99 +1,150 @@
 package com.example.smart_cam;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public class ReportingOptionsActivity extends BaseActivity {
+    private static final String TAG = "ReportOptionsActivity";
+    private String reportingType;
+    private int reportTypeId;
+    private String username;
+    private int userId;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reporting_options);
 
-        // Get reporting type from Intent
-        String reportingType = getIntent().getStringExtra("REPORTING_TYPE");
+        // Get extras
+        reportingType = getIntent().getStringExtra("REPORTING_TYPE");
+        reportTypeId = getIntent().getIntExtra("REPORT_TYPE_ID", -1);
+        username = getIntent().getStringExtra("username");
+        userId = getIntent().getIntExtra("user_id", -1);
+
+        // Log SharedPreferences contents
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        Log.d(TAG, "user_session contents: " + prefs.getAll().toString());
+        Log.d(TAG, "Received username: " + (username != null ? username : "null"));
+        Log.d(TAG, "Received user_id: " + userId);
+
+        // Validate extras
+        if (reportTypeId == -1 || username == null || username.isEmpty() || userId == -1) {
+            Log.e(TAG, "Invalid report_type_id, username, or user_id");
+            showToast("Invalid session or report type");
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
 
         // Initialize UI elements
         TextView tvTitle = findViewById(R.id.tv_title);
-        RadioGroup rgOptions = findViewById(R.id.rg_options);
-        RadioButton rbElephantMovement = findViewById(R.id.rb_elephant_movement);
-        RadioButton rbNoElephantMovement = findViewById(R.id.rb_no_elephant_movement);
-        Button btnSubmit = findViewById(R.id.btn_submit);
+        Button btnElephantMovement = findViewById(R.id.rb_elephant_movement);
+        Button btnNoElephantMovement = findViewById(R.id.rb_no_elephant_movement);
         Button btnBack = findViewById(R.id.btn_back);
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
 
         // Set title
-        tvTitle.setText(reportingType != null ? reportingType : "Reporting Options");
+        tvTitle.setText(reportingType != null ? reportingType + ": Select Option" : "Select Option");
+        Log.d(TAG, "Initialized with report_type_id=" + reportTypeId + ", reporting_type=" + reportingType);
+
+        // Handle Elephant Movement button
+        btnElephantMovement.setOnClickListener(v -> {
+            Log.d(TAG, "Elephant Movement clicked for report_type_id=" + reportTypeId);
+            Intent intent = new Intent(ReportingOptionsActivity.this, VillageSelectionActivity.class);
+            intent.putExtra("REPORTING_TYPE", reportingType);
+            intent.putExtra("REPORT_TYPE_ID", reportTypeId);
+            intent.putExtra("username", username);
+            intent.putExtra("user_id", userId);
+            try {
+                startActivity(intent);
+                Log.d(TAG, "Navigating to VillageSelectionActivity");
+            } catch (Exception e) {
+                Log.e(TAG, "Error starting VillageSelectionActivity: " + e.getMessage(), e);
+                showToast("Error navigating: " + e.getMessage());
+            }
+        });
+
+        // Handle No Elephant Movement button
+        btnNoElephantMovement.setOnClickListener(v -> {
+            Log.d(TAG, "No Elephant Movement clicked for report_type_id=" + reportTypeId);
+            submitReportNoElephant();
+        });
 
         // Handle Back button
-        btnBack.setOnClickListener(v -> finish());
-
-        // Handle Submit button
-        btnSubmit.setOnClickListener(v -> {
-            int selectedId = rgOptions.getCheckedRadioButtonId();
-            if (selectedId == R.id.rb_elephant_movement) {
-                Intent intent = new Intent(ReportingOptionsActivity.this, VillageSelectionActivity.class);
-                intent.putExtra("REPORTING_TYPE", reportingType);
-                startActivity(intent);
-            } else if (selectedId == R.id.rb_no_elephant_movement) {
-                // Custom Toast for No Elephant Movement
-                Toast toast = new Toast(this);
-                View toastView = getLayoutInflater().inflate(R.layout.custom_toast, null);
-                TextView toastMessage = toastView.findViewById(R.id.toast_message);
-                toastMessage.setTextColor(getResources().getColor(R.color.green));
-                toastMessage.setText(reportingType + ": No Elephant Movement submitted");
-                toast.setView(toastView);
-                toast.setDuration(Toast.LENGTH_SHORT);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-                toast.show();
-                // Redirect to AddReportingActivity
-                Intent intent = new Intent(ReportingOptionsActivity.this, AddReportingActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                startActivity(intent);
-                finish();
-            } else {
-                // Custom Toast for no selection
-                Toast toast = new Toast(this);
-                View toastView = getLayoutInflater().inflate(R.layout.custom_toast, null);
-                TextView toastMessage = toastView.findViewById(R.id.toast_message);
-                toastMessage.setTextColor(getResources().getColor(R.color.green));
-                toastMessage.setText("Please select an option");
-                toast.setView(toastView);
-                toast.setDuration(Toast.LENGTH_SHORT);
-                toast.setGravity(Gravity.CENTER, 0, 0);
-                toast.show();
-            }
+        btnBack.setOnClickListener(v -> {
+            Log.d(TAG, "Back button clicked");
+            finish();
         });
 
         // Set up bottom navigation
         bottomNavigationView.setSelectedItemId(R.id.nav_add);
         bottomNavigationView.setOnItemSelectedListener(item -> {
             int itemId = item.getItemId();
+            Log.d(TAG, "Navigation item clicked: " + itemId);
             if (itemId == R.id.nav_home) {
-                startActivity(new Intent(this, DashboardActivity.class));
+                Intent intent = new Intent(this, DashboardActivity.class);
+                intent.putExtra("username", username);
+                intent.putExtra("user_id", userId);
+                startActivity(intent);
                 finish();
                 return true;
             } else if (itemId == R.id.nav_add) {
                 Intent intent = new Intent(this, AddReportingActivity.class);
-                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                intent.putExtra("username", username);
+                intent.putExtra("user_id", userId);
                 startActivity(intent);
                 finish();
                 return true;
             } else if (itemId == R.id.nav_menu) {
-                // Placeholder for menu action
-                Toast.makeText(this, "Menu clicked", Toast.LENGTH_SHORT).show();
+                showToast("Menu clicked");
                 return true;
             }
             return false;
         });
     }
+
+    private void submitReportNoElephant() {
+        Log.d(TAG, "No Elephant Movement clicked - navigating to ReportVillageActivity");
+
+        // Navigate to ReportVillageActivity for village selection
+        Intent intent = new Intent(ReportingOptionsActivity.this, ReportVillageActivity.class);
+        intent.putExtra("REPORTING_TYPE", reportingType);
+        intent.putExtra("REPORT_TYPE_ID", reportTypeId);
+        intent.putExtra("username", username);
+        intent.putExtra("user_id", userId);
+        intent.putExtra("NO_ELEPHANT_FOUND", true); // Flag to indicate no elephant found scenario
+        try {
+            startActivity(intent);
+            Log.d(TAG, "Navigating to ReportVillageActivity for village selection");
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting ReportVillageActivity: " + e.getMessage(), e);
+            showToast("Error navigating: " + e.getMessage());
+        }
+    }
+
+
+
+    private void showToast(String message) {
+        Toast toast = new Toast(this);
+        View toastView = getLayoutInflater().inflate(R.layout.custom_toast, null);
+        TextView toastMessage = toastView.findViewById(R.id.toast_message);
+        toastMessage.setTextColor(getResources().getColor(R.color.green));
+        toastMessage.setText(message);
+        toast.setView(toastView);
+        toast.setDuration(Toast.LENGTH_LONG);
+        toast.setGravity(Gravity.CENTER, 0, 0);
+        toast.show();
+    }
+
+
 }

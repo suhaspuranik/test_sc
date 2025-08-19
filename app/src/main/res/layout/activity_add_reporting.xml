@@ -1,29 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp"
     android:background="@color/background">
 
-    <RelativeLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+    <!-- Title -->
+    <TextView
+        android:id="@+id/tv_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="10dp"
+        android:text="Add Reporting"
+        android:textColor="@color/green"
+        android:textSize="22sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="16dp" />
 
-        <TextView
-            android:id="@+id/tv_title"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingTop="10dp"
-            android:text="Add Reporting"
-            android:textColor="@color/green"
-            android:textSize="22sp"
-            android:textStyle="bold"
-            android:layout_alignParentStart="true"
-            android:layout_alignParentLeft="true" />
-    </RelativeLayout>
-
+    <!-- Back Button -->
     <Button
         android:id="@+id/btn_back"
         android:layout_width="46dp"
@@ -38,128 +35,238 @@
         android:stateListAnimator="@animator/button_elevation"
         android:text=""
         android:contentDescription="Back"
-        android:textSize="16sp"/>
+        android:textSize="16sp"
+        app:layout_constraintTop_toBottomOf="@id/tv_title"
+        app:layout_constraintStart_toStartOf="parent"
+        android:layout_marginStart="16dp" />
 
-    <LinearLayout
-        android:id="@+id/reporting_container"
-        android:layout_width="match_parent"
+    <!-- Scrollable content -->
+    <ScrollView
+        android:id="@+id/scrollView"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical"
-        android:padding="12dp"
-        android:background="@color/card_background"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/tv_title"
+        app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
+        app:layout_constraintVertical_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="16dp"
-        android:elevation="4dp">
-
-        <Button
-            android:id="@+id/btn_1st_reporting"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="1st Reporting"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:background="@drawable/button_background"
-            android:drawableLeft="@drawable/ic_plus"
-            android:drawablePadding="12dp"
-            android:layout_marginBottom="8dp"
-            android:elevation="2dp"
-            android:stateListAnimator="@animator/button_elevation"
-            android:transitionName="reporting_transition" />
-
-        <TextView
-            android:id="@+id/tv_last_updated"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Last updated on July 27, 2025"
-            android:textColor="@color/red"
-            android:textSize="14sp"
-            android:layout_marginBottom="8dp"
-            android:layout_gravity="end" />
-
-        <Button
-            android:id="@+id/btn_2nd_reporting"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="2nd Reporting"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:background="@drawable/button_background"
-            android:drawableLeft="@drawable/ic_plus"
-            android:drawablePadding="12dp"
-            android:layout_marginBottom="24dp"
-            android:elevation="2dp"
-            android:stateListAnimator="@animator/button_elevation"
-            android:transitionName="reporting_transition" />
-
-        <Button
-            android:id="@+id/btn_3rd_reporting"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="3rd Reporting"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:background="@drawable/button_background"
-            android:drawableLeft="@drawable/ic_plus"
-            android:drawablePadding="12dp"
-            android:layout_marginBottom="24dp"
-            android:elevation="2dp"
-            android:stateListAnimator="@animator/button_elevation"
-            android:transitionName="reporting_transition" />
-
-        <Button
-            android:id="@+id/btn_add_other"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Add Other Reporting"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:background="@drawable/button_background"
-            android:drawableLeft="@drawable/ic_plus"
-            android:drawablePadding="12dp"
-            android:layout_marginBottom="24dp"
-            android:elevation="4dp"
-            android:stateListAnimator="@animator/button_elevation"
-            android:transitionName="add_button_transition" />
-
-        <Button
-            android:id="@+id/btn_solar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Add Solar Fence Volts"
-            android:textColor="@color/white"
-            android:textSize="12sp"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:background="@drawable/button_background"
-            android:drawableLeft="@drawable/ic_plus"
-            android:drawablePadding="12dp"
-            android:layout_marginBottom="12dp"
-            android:elevation="4dp"
-            android:stateListAnimator="@animator/button_elevation"
-            android:transitionName="add_button_transition" />
+        android:layout_marginBottom="16dp">
 
         <LinearLayout
-            android:id="@+id/layout_other_reporting"
+            android:id="@+id/button_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
-    </LinearLayout>
+            android:orientation="vertical"
+            android:padding="16dp">
 
+            <!-- 1st Reporting -->
+            <LinearLayout
+                android:id="@+id/container_1st_reporting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_container_border"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"
+                android:elevation="4dp"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/btn_1st_reporting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="1st Reporting"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:background="@drawable/button_background"
+                    android:drawableLeft="@drawable/ic_plus"
+                    android:drawablePadding="12dp"
+                    android:elevation="2dp"
+                    android:stateListAnimator="@animator/button_elevation"
+                    android:transitionName="reporting_transition" />
+
+                <TextView
+                    android:id="@+id/tv_last_updated_1st"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No updates yet"
+                    android:textColor="@color/green"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:layout_gravity="end" />
+            </LinearLayout>
+
+            <!-- 2nd Reporting -->
+            <LinearLayout
+                android:id="@+id/container_2nd_reporting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_container_border"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"
+                android:elevation="4dp">
+
+                <Button
+                    android:id="@+id/btn_2nd_reporting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="2nd Reporting"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:background="@drawable/button_background"
+                    android:drawableLeft="@drawable/ic_plus"
+                    android:drawablePadding="12dp"
+                    android:elevation="2dp"
+                    android:stateListAnimator="@animator/button_elevation"
+                    android:transitionName="reporting_transition" />
+
+                <TextView
+                    android:id="@+id/tv_last_updated_2nd"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No updates yet"
+                    android:textColor="@color/green"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:layout_gravity="end" />
+            </LinearLayout>
+
+            <!-- 3rd Reporting -->
+            <LinearLayout
+                android:id="@+id/container_3rd_reporting"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_container_border"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"
+                android:elevation="4dp">
+
+                <Button
+                    android:id="@+id/btn_3rd_reporting"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="3rd Reporting"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:background="@drawable/button_background"
+                    android:drawableLeft="@drawable/ic_plus"
+                    android:drawablePadding="12dp"
+                    android:elevation="2dp"
+                    android:stateListAnimator="@animator/button_elevation"
+                    android:transitionName="reporting_transition" />
+
+                <TextView
+                    android:id="@+id/tv_last_updated_3rd"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No updates yet"
+                    android:textColor="@color/green"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:layout_gravity="end" />
+            </LinearLayout>
+
+            <!-- Add Other Reporting -->
+            <LinearLayout
+                android:id="@+id/container_add_other"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_container_border"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"
+                android:elevation="4dp">
+
+                <Button
+                    android:id="@+id/btn_add_other"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Add Other Reporting"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:background="@drawable/button_background"
+                    android:drawableLeft="@drawable/ic_plus"
+                    android:drawablePadding="12dp"
+                    android:elevation="4dp"
+                    android:stateListAnimator="@animator/button_elevation"
+                    android:transitionName="add_button_transition" />
+
+                <TextView
+                    android:id="@+id/tv_last_updated_other"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No updates yet"
+                    android:textColor="@color/green"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:layout_gravity="end" />
+            </LinearLayout>
+
+            <!-- Add Solar Fence Volts -->
+            <LinearLayout
+                android:id="@+id/container_solar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/rounded_container_border"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:layout_marginBottom="16dp"
+                android:elevation="4dp">
+
+                <Button
+                    android:id="@+id/btn_solar"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Add Solar Fence Volts"
+                    android:textColor="@color/white"
+                    android:textSize="12sp"
+                    android:paddingStart="16dp"
+                    android:paddingEnd="16dp"
+                    android:background="@drawable/button_background"
+                    android:drawableLeft="@drawable/ic_plus"
+                    android:drawablePadding="12dp"
+                    android:elevation="4dp"
+                    android:stateListAnimator="@animator/button_elevation"
+                    android:transitionName="add_button_transition" />
+
+                <TextView
+                    android:id="@+id/tv_last_updated_solar"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="No updates yet"
+                    android:textColor="@color/green"
+                    android:textSize="14sp"
+                    android:layout_marginTop="8dp"
+                    android:layout_gravity="end" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- Bottom Navigation Bar -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottom_navigation"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@drawable/tab_unselected"
+        android:elevation="4dp"
         app:itemIconTint="@color/bottom_nav_selector"
         app:itemTextColor="@color/bottom_nav_selector"
         app:labelVisibilityMode="unlabeled"
-        app:menu="@menu/bottom_nav_menu" />
-</LinearLayout>
+        app:menu="@menu/bottom_nav_menu"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

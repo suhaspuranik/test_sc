@@ -35,7 +35,6 @@ public class DashboardActivity extends BaseActivity {
     ArrayList<AlertItem> fullAlertList = new ArrayList<>();
     ArrayList<AlertItem> filteredAlertList = new ArrayList<>();
     String username;
-    String token_app;
     int userId;
     Button btnLogout;
     String currentFilterStatus = "pending";
@@ -50,10 +49,29 @@ public class DashboardActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
 
-        username = getIntent().getStringExtra("username");
-        userId = getIntent().getIntExtra("user_id", -1);
-        token_app = getIntent().getStringExtra("token_app");
+        // Retrieve from SharedPreferences first, then Intent extras
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        username = prefs.getString("username", getIntent().getStringExtra("username"));
+        userId = prefs.getInt("user_id", getIntent().getIntExtra("user_id", -1));
 
+        // Log session data
+        Log.d("DashboardActivity", "Session: username=" + username + ", user_id=" + userId);
+
+        // Validate session
+        if (username == null || username.isEmpty() || userId == -1) {
+            Log.w("DashboardActivity", "Invalid session, redirecting to MainActivity");
+            handleSessionExpired();
+            return;
+        }
+
+        // Store in SharedPreferences
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString("username", username);
+        editor.putInt("user_id", userId);
+        editor.apply();
+        Log.d("DashboardActivity", "Stored in SharedPreferences: username=" + username + ", user_id=" + userId);
+
+        // Initialize UI components
         tabAll = findViewById(R.id.btnAll);
         tabPending = findViewById(R.id.btnPending);
         tabAttending = findViewById(R.id.btnAttending);
@@ -62,28 +80,35 @@ public class DashboardActivity extends BaseActivity {
         recyclerView = findViewById(R.id.recyclerView);
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
 
+        // Set navigation item
+        String selectedNav = getIntent().getStringExtra("selected_nav");
+        if ("add".equals(selectedNav)) {
+            bottomNavigationView.setSelectedItemId(R.id.nav_add);
+        } else {
+            bottomNavigationView.setSelectedItemId(R.id.nav_home);
+        }
+
+        // Initialize RecyclerView
         adapter = new AlertAdapter(this, filteredAlertList, username);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
+        // Set tab click listeners
         tabAll.setOnClickListener(v -> {
             currentFilterStatus = "all";
             filterAlerts();
             highlightSelectedTab(tabAll);
         });
-
         tabPending.setOnClickListener(v -> {
             currentFilterStatus = "pending";
             filterAlerts();
             highlightSelectedTab(tabPending);
         });
-
         tabAttending.setOnClickListener(v -> {
             currentFilterStatus = "attending";
             filterAlerts();
             highlightSelectedTab(tabAttending);
         });
-
         tabResolved.setOnClickListener(v -> {
             currentFilterStatus = "resolved";
             filterAlerts();
@@ -92,7 +117,6 @@ public class DashboardActivity extends BaseActivity {
 
         btnLogout.setOnClickListener(v -> logoutUser());
 
-        // Set up BottomNavigationView listener
         bottomNavigationView.setOnNavigationItemSelectedListener(item -> {
             Log.d("NAVIGATION", "Item clicked: " + item.getItemId());
             int itemId = item.getItemId();
@@ -103,8 +127,10 @@ public class DashboardActivity extends BaseActivity {
                 Log.d("NAVIGATION", "Add selected");
                 try {
                     Intent intent = new Intent(DashboardActivity.this, AddReportingActivity.class);
+                    intent.putExtra("username", username);
+                    intent.putExtra("user_id", userId);
                     startActivity(intent);
-                    Log.d("NAVIGATION", "AddReportingActivity started");
+                    Log.d("NAVIGATION", "AddReportingActivity started with username=" + username + ", user_id=" + userId);
                     return true;
                 } catch (Exception e) {
                     Log.e("NAVIGATION", "Error starting AddReportingActivity: " + e.getMessage());
@@ -119,14 +145,31 @@ public class DashboardActivity extends BaseActivity {
             return false;
         });
 
-        // Highlight Home tab as selected
         bottomNavigationView.setSelectedItemId(R.id.nav_home);
 
+        // Fetch alerts
         fetchAlerts();
         highlightSelectedTab(tabPending);
     }
 
+    private void filterAlerts() {
+        filteredAlertList.clear();
+        if ("all".equals(currentFilterStatus)) {
+            filteredAlertList.addAll(fullAlertList);
+        } else {
+            for (AlertItem alert : fullAlertList) {
+                if (alert.getStatus().equalsIgnoreCase(currentFilterStatus)) {
+                    filteredAlertList.add(alert);
+                }
+            }
+        }
+        adapter.notifyDataSetChanged();
+    }
+
     public void fetchAlerts() {
+        Log.d("API_FETCH_ALERTS", "fetchAlerts called");
+        // No need to check auth_token - backend only uses x-api-key
+
         fullAlertList.clear();
 
         try {
@@ -143,7 +186,8 @@ public class DashboardActivity extends BaseActivity {
                             for (int i = 0; i < arr.length(); i++) {
                                 JSONObject obj = arr.getJSONObject(i);
                                 String attendedUser = obj.optString("attended_user", "N/A");
-                                Log.d("API_FETCH_ALERTS", "Alert ID: " + obj.getInt("alert_id") + ", Attended User: " + attendedUser);
+                                Log.d("API_FETCH_ALERTS", "Alert ID: " + obj.getInt("alert_id") +
+                                        ", Attended User: " + attendedUser);
                                 fullAlertList.add(new AlertItem(
                                         obj.getInt("alert_id"),
                                         obj.getString("alert_type"),
@@ -156,28 +200,21 @@ public class DashboardActivity extends BaseActivity {
                                 ));
                             }
                             Collections.sort(fullAlertList, (a1, a2) -> a2.getTime().compareTo(a1.getTime()));
-
                             filterAlerts();
                         } catch (Exception e) {
                             Log.e("API_FETCH_ALERTS", "Parsing error: " + e.getMessage());
-                            Toast.makeText(this, "Parsing error", Toast.LENGTH_SHORT).show();
+                            runOnUiThread(() -> Toast.makeText(this, "Error parsing alerts: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                         }
                     },
-                    error -> {
-                        if (error.networkResponse != null && error.networkResponse.data != null) {
-                            String errorMsg = new String(error.networkResponse.data);
-                            Log.e("API_FETCH_ALERTS", "Error: " + errorMsg);
-                        } else {
-                            Log.e("API_FETCH_ALERTS", "Error: " + error.toString());
-                        }
-                        Toast.makeText(this, "Network error", Toast.LENGTH_SHORT).show();
-                    }
-            ) {
+                    error -> handleVolleyError(error, "Failed to fetch alerts"))
+            {
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
                     Map<String, String> headers = new HashMap<>();
                     headers.put("Content-Type", "application/json");
                     headers.put("x-api-key", AppConfig.API_KEY);
+                    // Remove Authorization header - backend only uses x-api-key
+                    Log.d("API_FETCH_ALERTS", "Request headers: " + headers.toString());
                     return headers;
                 }
             };
@@ -186,35 +223,25 @@ public class DashboardActivity extends BaseActivity {
 
         } catch (Exception e) {
             Log.e("API_FETCH_ALERTS", "Exception: " + e.getMessage());
-            e.printStackTrace();
+            runOnUiThread(() -> Toast.makeText(this, "Exception occurred: " + e.getMessage(), Toast.LENGTH_SHORT).show());
         }
-    }
-
-    private void filterAlerts() {
-        filteredAlertList.clear();
-
-        if (currentFilterStatus.equals("all")) {
-            filteredAlertList.addAll(fullAlertList);
-        } else {
-            for (AlertItem alert : fullAlertList) {
-                if (alert.getStatus().equalsIgnoreCase(currentFilterStatus)) {
-                    filteredAlertList.add(alert);
-                }
-            }
-        }
-        adapter.notifyDataSetChanged();
     }
 
     public void manageAlert(int alertId, String newStatus, AlertStatusCallback callback) {
+        Log.d("API_MANAGE_ALERT", "manageAlert called for alert_id=" + alertId + ", status=" + newStatus);
+        if (userId == -1) {
+            Log.w("API_MANAGE_ALERT", "Invalid user_id, calling handleSessionExpired");
+            handleSessionExpired();
+            if (callback != null) callback.onFailure();
+            return;
+        }
+
         try {
             JSONObject jsonBody = new JSONObject();
             jsonBody.put("alert_id", alertId);
-            jsonBody.put("user_id", userId);
             jsonBody.put("status", newStatus);
+            jsonBody.put("user_id", userId);
             jsonBody.put("stage", "dev");
-            if (newStatus.equalsIgnoreCase("attending")) {
-                jsonBody.put("attended_user", username);
-            }
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
                     AppConfig.MANAGE_ALERTS_URL, jsonBody,
@@ -222,43 +249,35 @@ public class DashboardActivity extends BaseActivity {
                         Log.d("API_MANAGE_ALERT", "Response: " + response.toString());
                         try {
                             JSONObject result = response.getJSONObject("RESULT");
-                            String flag = result.optString("p_out_mssg_flg", "E");
-                            String message = result.optString("p_out_mssg", "Unknown response");
+                            String flag = result.getString("p_out_mssg_flg");
+                            String message = result.getString("p_out_mssg");
 
-                            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-
-                            if (flag.equalsIgnoreCase("S")) {
-                                for (AlertItem alert : fullAlertList) {
-                                    if (alert.getId() == alertId) {
-                                        alert.setStatus(newStatus.toLowerCase(Locale.ROOT));
-                                        if (newStatus.equalsIgnoreCase("attending")) {
-                                            alert.setAttendedUser(username);
-                                        } else if (newStatus.equalsIgnoreCase("resolved")) {
-                                            alert.setAttendedUser(alert.getAttendedUser());
-                                        }
-                                        break;
-                                    }
-                                }
-                                filterAlerts();
-                                if (callback != null) callback.onSuccess();
+                            if (flag.equals("S")) {
+                                runOnUiThread(() -> {
+                                    Toast.makeText(this, "Alert status updated successfully", Toast.LENGTH_SHORT).show();
+                                    if (callback != null) callback.onSuccess();
+                                });
+                                fetchAlerts(); // Refresh the list
                             } else {
-                                if (callback != null) callback.onFailure();
+                                runOnUiThread(() -> {
+                                    Toast.makeText(this, "Failed to update alert status: " + message, Toast.LENGTH_LONG).show();
+                                    if (callback != null) callback.onFailure();
+                                });
                             }
                         } catch (Exception e) {
                             Log.e("API_MANAGE_ALERT", "Parsing error: " + e.getMessage());
-                            Toast.makeText(this, "Response parsing error", Toast.LENGTH_SHORT).show();
-                            if (callback != null) callback.onFailure();
+                            runOnUiThread(() -> {
+                                Toast.makeText(this, "Error parsing response: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                if (callback != null) callback.onFailure();
+                            });
                         }
                     },
                     error -> {
-                        if (error.networkResponse != null && error.networkResponse.data != null) {
-                            String errorMsg = new String(error.networkResponse.data);
-                            Log.e("API_MANAGE_ALERT", "Error: " + errorMsg);
-                        } else {
-                            Log.e("API_MANAGE_ALERT", "Error: " + error.toString());
-                        }
-                        Toast.makeText(this, "Failed to update", Toast.LENGTH_SHORT).show();
-                        if (callback != null) callback.onFailure();
+                        Log.e("API_MANAGE_ALERT", "Network error: " + error.getMessage());
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "Network error: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                            if (callback != null) callback.onFailure();
+                        });
                     }
             ) {
                 @Override
@@ -266,6 +285,8 @@ public class DashboardActivity extends BaseActivity {
                     Map<String, String> headers = new HashMap<>();
                     headers.put("Content-Type", "application/json");
                     headers.put("x-api-key", AppConfig.API_KEY);
+                    // Remove Authorization header - backend only uses x-api-key
+                    Log.d("API_MANAGE_ALERT", "Request headers: " + headers.toString());
                     return headers;
                 }
             };
@@ -274,36 +295,22 @@ public class DashboardActivity extends BaseActivity {
 
         } catch (Exception e) {
             Log.e("API_MANAGE_ALERT", "Exception: " + e.getMessage());
-            e.printStackTrace();
-            Toast.makeText(this, "Exception occurred", Toast.LENGTH_SHORT).show();
+            runOnUiThread(() -> Toast.makeText(this, "Exception occurred: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             if (callback != null) callback.onFailure();
         }
     }
 
     private void logoutUser() {
+        Log.d("API_LOGOUT", "logoutUser called");
+        if (username == null || username.isEmpty()) {
+            Log.w("API_LOGOUT", "Invalid username, calling handleSessionExpired");
+            handleSessionExpired();
+            return;
+        }
+
         try {
-            SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
-            String token_app = prefs.getString("fcm_token", "");
-            String username = prefs.getString("username", "");
-
-            SharedPreferences.Editor editor = getSharedPreferences("user_session", MODE_PRIVATE).edit();
-            editor.putBoolean("is_logged_in", false);
-            editor.apply();
-            Log.d("LOGOUT_DEBUG", "Sending logout request");
-            Log.d("LOGOUT_DEBUG", "Username: " + username);
-            Log.d("LOGOUT_DEBUG", "Token: " + token_app);
-
-            if (token_app.isEmpty() || username.isEmpty()) {
-                Toast.makeText(this, "Invalid session. Please log in again.", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(DashboardActivity.this, MainActivity.class);
-                startActivity(intent);
-                finish();
-                return;
-            }
-
             JSONObject jsonBody = new JSONObject();
             jsonBody.put("username", username);
-            jsonBody.put("token_app", token_app);
             jsonBody.put("stage", "dev");
 
             JsonObjectRequest request = new JsonObjectRequest(Request.Method.POST,
@@ -316,33 +323,30 @@ public class DashboardActivity extends BaseActivity {
                             String message = result.getString("p_out_mssg");
 
                             if (flag.equals("S")) {
-                                Toast.makeText(this, "Logout successful", Toast.LENGTH_SHORT).show();
-                                getSharedPreferences("user_session", MODE_PRIVATE).edit().clear().apply();
-                                startActivity(new Intent(DashboardActivity.this, MainActivity.class));
+                                runOnUiThread(() -> Toast.makeText(this, "Logout successful", Toast.LENGTH_SHORT).show());
+                                SharedPreferences.Editor editor = getSharedPreferences("user_session", MODE_PRIVATE).edit();
+                                editor.clear().apply();
+                                Intent intent = new Intent(DashboardActivity.this, MainActivity.class);
+                                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                                startActivity(intent);
                                 finish();
                             } else {
-                                Toast.makeText(this, "Logout failed: " + message, Toast.LENGTH_LONG).show();
+                                runOnUiThread(() -> Toast.makeText(this, "Logout failed: " + message, Toast.LENGTH_LONG).show());
                             }
                         } catch (Exception e) {
-                            e.printStackTrace();
-                            Toast.makeText(this, "Logout error: Invalid response", Toast.LENGTH_SHORT).show();
+                            Log.e("API_LOGOUT", "Parsing error: " + e.getMessage());
+                            runOnUiThread(() -> Toast.makeText(this, "Logout error: Invalid response", Toast.LENGTH_SHORT).show());
                         }
                     },
-                    error -> {
-                        if (error.networkResponse != null && error.networkResponse.data != null) {
-                            String errorMsg = new String(error.networkResponse.data);
-                            Log.e("API_LOGOUT", "Logout error: " + errorMsg);
-                        } else {
-                            Log.e("API_LOGOUT", "Logout error: " + error.toString());
-                        }
-                        Toast.makeText(this, "Logout failed: Network error", Toast.LENGTH_SHORT).show();
-                    }
-            ) {
+                    error -> handleVolleyError(error, "Logout failed: Network error"))
+            {
                 @Override
                 public Map<String, String> getHeaders() throws AuthFailureError {
                     Map<String, String> headers = new HashMap<>();
                     headers.put("Content-Type", "application/json");
                     headers.put("x-api-key", AppConfig.API_KEY);
+                    // Remove Authorization header - backend only uses x-api-key
+                    Log.d("API_LOGOUT", "Request headers: " + headers.toString());
                     return headers;
                 }
             };
@@ -351,9 +355,42 @@ public class DashboardActivity extends BaseActivity {
 
         } catch (Exception e) {
             Log.e("API_LOGOUT", "Exception: " + e.getMessage());
-            e.printStackTrace();
-            Toast.makeText(this, "Logout failed: Exception occurred", Toast.LENGTH_SHORT).show();
+            runOnUiThread(() -> Toast.makeText(this, "Logout failed: Exception occurred", Toast.LENGTH_SHORT).show());
         }
+    }
+
+    private void handleSessionExpired() {
+        Log.d("DashboardActivity", "handleSessionExpired called");
+        SharedPreferences.Editor editor = getSharedPreferences("user_session", MODE_PRIVATE).edit();
+        editor.clear().apply();
+        runOnUiThread(() -> {
+            Toast.makeText(this, "session expires", Toast.LENGTH_LONG).show();
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+            startActivity(intent);
+            finish();
+        });
+    }
+
+    private void handleVolleyError(com.android.volley.VolleyError error, String defaultMessage) {
+        String errorMsg;
+        if (error.networkResponse != null && error.networkResponse.data != null) {
+            errorMsg = new String(error.networkResponse.data);
+        } else {
+            errorMsg = defaultMessage;
+        }
+        Log.e("API_ERROR", "Error: " + errorMsg + ", statusCode=" +
+                (error.networkResponse != null ? error.networkResponse.statusCode : "unknown"));
+        runOnUiThread(() -> {
+            if (error.networkResponse != null && error.networkResponse.statusCode == 403 ||
+                    errorMsg.contains("Invalid Authentication Token") ||
+                    errorMsg.contains("Missing Authentication Token") ||
+                    errorMsg.contains("Invalid key=value pair")) {
+                handleSessionExpired();
+            } else {
+                Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void highlightSelectedTab(TextView selectedTab) {
