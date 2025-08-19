@@ -45,4 +45,11 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("com.google.android.material:material:1.11.0")
     implementation("com.android.volley:volley:1.2.1")
+
+    // Unit testing
+    testImplementation("junit:junit:4.13.2")
+
+    // Instrumentation testing
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
