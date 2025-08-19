@@ -55,39 +55,39 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <RadioGroup
-            android:id="@+id/rg_options"
+        <LinearLayout
+            android:id="@+id/options_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="12dp"
             android:background="@color/card_background">
 
-            <RadioButton
+            <Button
                 android:id="@+id/rb_elephant_movement"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="56dp"
                 android:text="Elephant Movement"
-                android:textColor="@color/textColor"
-                android:textSize="18sp"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textAllCaps="false"
                 android:padding="12dp"
-                android:buttonTint="@color/green"
-                android:background="@android:color/transparent"
-                android:layout_marginBottom="8dp" />
+                android:background="@drawable/button_background_blue"
+                android:layout_marginBottom="12dp" />
 
-            <RadioButton
+            <Button
                 android:id="@+id/rb_no_elephant_movement"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="56dp"
                 android:text="No Elephant Movement"
-                android:textColor="@color/textColor"
-                android:textSize="18sp"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:textAllCaps="false"
                 android:padding="12dp"
-                android:buttonTint="@color/green"
-                android:background="@android:color/transparent"
+                android:background="@drawable/button_background_blue"
                 android:layout_marginBottom="8dp" />
 
-        </RadioGroup>
+        </LinearLayout>
 
         <Button
             android:id="@+id/btn_submit"
