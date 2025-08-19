@@ -32,10 +32,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.example.smart_cam.ui.CheckboxListAdapter;
+
 public class VillageSelectionActivity extends BaseActivity {
     private static final String TAG = "VillageSelectAct";
+    // Legacy ListView kept only to preserve structure; no longer used after migration
     private ListView lvAreas;
-    private AreaAdapter adapter;
+    private AreaAdapter legacyAdapter;
+    // New RecyclerView + Adapter
+    private RecyclerView rvAreas;
+    private CheckboxListAdapter adapter;
     private List<Area> areas;
     private String reportingType;
     private int reportTypeId;
@@ -87,10 +95,17 @@ public class VillageSelectionActivity extends BaseActivity {
 
         // Initialize UI elements
         TextView tvTitle = findViewById(R.id.tv_title);
-        lvAreas = findViewById(R.id.lv_villages);
+        // Legacy ListView removed from layout; keep variable null
+        lvAreas = null;
+        rvAreas = findViewById(R.id.rv_villages);
         Button btnNext = findViewById(R.id.btn_next);
         Button btnBack = findViewById(R.id.btn_back);
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottom_navigation);
+
+        // Setup RecyclerView
+        if (rvAreas != null) {
+            rvAreas.setLayoutManager(new LinearLayoutManager(this));
+        }
 
         // Set title
         tvTitle.setText(reportingType != null ? reportingType + ": Elephant Found in areas" : "Elephant Found in areas");
@@ -98,33 +113,13 @@ public class VillageSelectionActivity extends BaseActivity {
         // Fetch user-mapped areas
         fetchUserMappedAreas();
 
-        // Add scroll listener to debug scrolling issues
-        lvAreas.setOnScrollListener(new AbsListView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(AbsListView view, int scrollState) {
-                if (scrollState == SCROLL_STATE_IDLE && adapter != null) {
-                    // When scrolling stops, just log the state
-                    Log.d(TAG, "Scroll stopped. Selected areas: " + adapter.getSelectedAreaIds().size());
-                }
-            }
-
-            @Override
-            public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount, int totalItemCount) {
-                // Optional: Log scroll events for debugging
-            }
-        });
-
         // Handle Back button
         btnBack.setOnClickListener(v -> finish());
 
         // Handle Next button
         btnNext.setOnClickListener(v -> {
-            // Validate and fix any inconsistencies before proceeding
-            if (adapter != null) {
-                adapter.validateAndFixInconsistencies();
-            }
-            ArrayList<Integer> selectedAreaIds = adapter.getSelectedAreaIds();
-            ArrayList<String> selectedAreaNames = adapter.getSelectedAreaNames();
+            ArrayList<Integer> selectedAreaIds = adapter != null ? adapter.getSelectedIds() : new ArrayList<>();
+            ArrayList<String> selectedAreaNames = adapter != null ? adapter.getSelectedLabels() : new ArrayList<>();
             if (selectedAreaIds.isEmpty()) {
                 Toast toast = new Toast(this);
                 View toastView = getLayoutInflater().inflate(R.layout.custom_toast, null);
@@ -224,8 +219,14 @@ public class VillageSelectionActivity extends BaseActivity {
 
                         // Update UI on main thread
                         runOnUiThread(() -> {
-                            adapter = new AreaAdapter(this, areas);
-                            lvAreas.setAdapter(adapter);
+                            ArrayList<CheckboxListAdapter.Item> items = new ArrayList<>();
+                            for (Area a : areas) {
+                                items.add(new CheckboxListAdapter.Item(a.id, a.toString()));
+                            }
+                            adapter = new CheckboxListAdapter(this, items);
+                            if (rvAreas != null) {
+                                rvAreas.setAdapter(adapter);
+                            }
                         });
                     } catch (Exception e) {
                         Log.e(TAG, "Error parsing areas response: " + e.getMessage(), e);
@@ -286,6 +287,7 @@ public class VillageSelectionActivity extends BaseActivity {
         toast.show();
     }
 
+    // Legacy ListView adapter kept for reference; no longer used with RecyclerView
     private class AreaAdapter extends ArrayAdapter<Area> {
         private final ArrayList<Area> selectedAreas = new ArrayList<>();
         private final HashMap<Area, Boolean> areaCheckedStates; // Track by Area object for more reliable tracking
@@ -409,8 +411,6 @@ public class VillageSelectionActivity extends BaseActivity {
             // This will call getView for all visible items, properly restoring their states
             notifyDataSetChanged();
         }
-
-
 
         // Method to manually restore checkbox states for all visible items
         public void restoreCheckboxStates() {
